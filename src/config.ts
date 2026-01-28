@@ -10,15 +10,12 @@ export interface Config {
 }
 
 export function getConfig(): Config {
-  const dbHost = Deno.env.get('DB_HOST') || 'localhost';
-  const dbPort = Deno.env.get('DB_PORT') || '5432';
-  const dbUser = Deno.env.get('DB_USER') || 'atuin';
-  const dbPassword = Deno.env.get('DB_PASSWORD') || 'atuin';
-  const dbName = Deno.env.get('DB_NAME') || 'atuin';
+  const databaseUrl =
+    Deno.env.get('DATABASE_URL') || 'postgresql://atuin:atuin@localhost:5432/atuin';
 
   return {
     port: parseInt(Deno.env.get('PORT') || '8000', 10),
-    databaseUrl: `postgresql://${dbUser}:${dbPassword}@${dbHost}:${dbPort}/${dbName}`,
+    databaseUrl,
     cacheTtlSeconds: parseInt(Deno.env.get('CACHE_TTL_SECONDS') || '300', 10),
   };
 }
