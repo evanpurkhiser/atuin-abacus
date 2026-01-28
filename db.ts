@@ -14,34 +14,38 @@ export interface TimeOfDayStats {
   hourly: number[];
 }
 
+export interface Period {
+  startDate?: string;
+  endDate?: string;
+  timezone: string;
+}
+
 /**
  * Get the count of commands run per day within a date range
  */
-export async function getCommandsPerDay(
-  startDate?: string,
-  endDate?: string
-): Promise<DailyCommandCount[]> {
+export async function getCommandsPerDay(opts: Period): Promise<DailyCommandCount[]> {
+  const {startDate, endDate, timezone} = opts;
   const client = await pool.connect();
   try {
     let query = `
       SELECT
-        date(timestamp) as date,
+        date(timestamp AT TIME ZONE $1) as date,
         COUNT(*) as count
       FROM history
       WHERE deleted_at IS NULL
     `;
-    const params: string[] = [];
+    const params: string[] = [timezone];
 
     if (startDate) {
       params.push(startDate);
-      query += ` AND date(timestamp) >= $${params.length}`;
+      query += ` AND date(timestamp AT TIME ZONE $1) >= $${params.length}`;
     }
     if (endDate) {
       params.push(endDate);
-      query += ` AND date(timestamp) <= $${params.length}`;
+      query += ` AND date(timestamp AT TIME ZONE $1) <= $${params.length}`;
     }
 
-    query += ` GROUP BY date(timestamp) ORDER BY date`;
+    query += ` GROUP BY date(timestamp AT TIME ZONE $1) ORDER BY date`;
 
     const result = await client.queryObject<{date: Date; count: number}>(query, params);
 
@@ -60,39 +64,37 @@ export async function getCommandsPerDay(
  * per day for each hour. For example, if you ran 50 commands at 9am over 10 days,
  * the value at index 9 would be 5.0
  */
-export async function getTimeOfDayStats(
-  startDate?: string,
-  endDate?: string
-): Promise<TimeOfDayStats> {
+export async function getTimeOfDayStats(opts: Period): Promise<TimeOfDayStats> {
+  const {startDate, endDate, timezone} = opts;
   const client = await pool.connect();
   try {
     // Build the WHERE clause for date filtering
     let whereClause = 'WHERE deleted_at IS NULL';
-    const params: string[] = [];
+    const params: string[] = [timezone];
 
     if (startDate) {
       params.push(startDate);
-      whereClause += ` AND date(timestamp) >= $${params.length}`;
+      whereClause += ` AND date(timestamp AT TIME ZONE $1) >= $${params.length}`;
     }
     if (endDate) {
       params.push(endDate);
-      whereClause += ` AND date(timestamp) <= $${params.length}`;
+      whereClause += ` AND date(timestamp AT TIME ZONE $1) <= $${params.length}`;
     }
 
     // Query to get average commands per hour across all days
     const query = `
       WITH day_count AS (
-        SELECT COUNT(DISTINCT date(timestamp)) as total_days
+        SELECT COUNT(DISTINCT date(timestamp AT TIME ZONE $1)) as total_days
         FROM history
         ${whereClause}
       ),
       hourly_counts AS (
         SELECT
-          EXTRACT(HOUR FROM timestamp)::integer as hour,
+          EXTRACT(HOUR FROM timestamp AT TIME ZONE $1)::integer as hour,
           COUNT(*) as count
         FROM history
         ${whereClause}
-        GROUP BY EXTRACT(HOUR FROM timestamp)
+        GROUP BY EXTRACT(HOUR FROM timestamp AT TIME ZONE $1)
       )
       SELECT
         hourly_counts.hour,
