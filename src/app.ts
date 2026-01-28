@@ -141,21 +141,21 @@ export function createApp(db: DbFunctions, cacheTtlSeconds = 300) {
     );
   });
 
-  // History (with caching)
+  // History
   app.get('/history', cacheMiddleware, async c => {
     const period = getPeriodFromContext(c);
     const data = await db.getCommandsPerDay(period);
     return c.json(data);
   });
 
-  // Time of day stats (with caching)
+  // Time of day stats
   app.get('/time-of-day', cacheMiddleware, async c => {
     const period = getPeriodFromContext(c);
     const data = await db.getTimeOfDayStats(period);
     return c.json(data);
   });
 
-  // Total commands at root (with caching)
+  // Total commands at root
   app.get('/', cacheMiddleware, async c => {
     const period = getPeriodFromContext(c);
     const data = await db.getTotalCommands(period);
