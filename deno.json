@@ -13,7 +13,6 @@
     "@std/dotenv": "jsr:@std/dotenv@^0.225",
     "@std/assert": "jsr:@std/assert@^1",
     "postgres": "https://deno.land/x/postgres@v0.19.3/mod.ts",
-    "@evanpurkhiser/eslint-config": "npm:@evanpurkhiser/eslint-config@*",
     "hono": "jsr:@hono/hono@^4"
   },
   "fmt": {
