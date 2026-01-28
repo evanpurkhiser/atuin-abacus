@@ -27,25 +27,39 @@ export async function getCommandsPerDay(opts: Period): Promise<DailyCommandCount
   const {startDate, endDate, timezone} = opts;
   const client = await pool.connect();
   try {
+    // Union query to combine both old history table and new store table
     let query = `
+      WITH combined AS (
+        -- Old history table
+        SELECT timestamp AT TIME ZONE $1 as ts
+        FROM history
+        WHERE deleted_at IS NULL
+
+        UNION ALL
+
+        -- New store table (timestamps are in nanoseconds, convert to seconds)
+        SELECT to_timestamp(timestamp / 1000000000.0) AT TIME ZONE $1 as ts
+        FROM store
+        WHERE tag = 'history'
+      )
       SELECT
-        date(timestamp AT TIME ZONE $1) as date,
+        date(ts) as date,
         COUNT(*) as count
-      FROM history
-      WHERE deleted_at IS NULL
+      FROM combined
+      WHERE 1=1
     `;
     const params: string[] = [timezone];
 
     if (startDate) {
       params.push(startDate);
-      query += ` AND date(timestamp AT TIME ZONE $1) >= $${params.length}`;
+      query += ` AND date(ts) >= $${params.length}`;
     }
     if (endDate) {
       params.push(endDate);
-      query += ` AND date(timestamp AT TIME ZONE $1) <= $${params.length}`;
+      query += ` AND date(ts) <= $${params.length}`;
     }
 
-    query += ` GROUP BY date(timestamp AT TIME ZONE $1) ORDER BY date`;
+    query += ` GROUP BY date(ts) ORDER BY date`;
 
     const result = await client.queryObject<{date: Date; count: number}>(query, params);
 
@@ -68,33 +82,46 @@ export async function getTimeOfDayStats(opts: Period): Promise<TimeOfDayStats> {
   const {startDate, endDate, timezone} = opts;
   const client = await pool.connect();
   try {
-    // Build the WHERE clause for date filtering
-    let whereClause = 'WHERE deleted_at IS NULL';
+    // Build WHERE clause params for date filtering
     const params: string[] = [timezone];
+    let dateFilter = '';
 
     if (startDate) {
       params.push(startDate);
-      whereClause += ` AND date(timestamp AT TIME ZONE $1) >= $${params.length}`;
+      dateFilter += ` AND date(ts) >= $${params.length}`;
     }
     if (endDate) {
       params.push(endDate);
-      whereClause += ` AND date(timestamp AT TIME ZONE $1) <= $${params.length}`;
+      dateFilter += ` AND date(ts) <= $${params.length}`;
     }
 
-    // Query to get average commands per hour across all days
+    // Query to get average commands per hour across all days, combining both tables
     const query = `
-      WITH day_count AS (
-        SELECT COUNT(DISTINCT date(timestamp AT TIME ZONE $1)) as total_days
+      WITH combined AS (
+        -- Old history table
+        SELECT timestamp AT TIME ZONE $1 as ts
         FROM history
-        ${whereClause}
+        WHERE deleted_at IS NULL
+
+        UNION ALL
+
+        -- New store table (timestamps are in nanoseconds, convert to seconds)
+        SELECT to_timestamp(timestamp / 1000000000.0) AT TIME ZONE $1 as ts
+        FROM store
+        WHERE tag = 'history'
+      ),
+      day_count AS (
+        SELECT COUNT(DISTINCT date(ts)) as total_days
+        FROM combined
+        WHERE 1=1 ${dateFilter}
       ),
       hourly_counts AS (
         SELECT
-          EXTRACT(HOUR FROM timestamp AT TIME ZONE $1)::integer as hour,
+          EXTRACT(HOUR FROM ts)::integer as hour,
           COUNT(*) as count
-        FROM history
-        ${whereClause}
-        GROUP BY EXTRACT(HOUR FROM timestamp AT TIME ZONE $1)
+        FROM combined
+        WHERE 1=1 ${dateFilter}
+        GROUP BY EXTRACT(HOUR FROM ts)
       )
       SELECT
         hourly_counts.hour,
