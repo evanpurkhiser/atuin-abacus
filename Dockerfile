@@ -18,10 +18,10 @@ RUN curl -fsSL https://deno.land/install.sh | sh -s v2.6.5
 
 # Copy application files
 COPY deno.json deno.lock ./
-COPY *.ts ./
+COPY src/ ./src/
 
 # Cache dependencies
-RUN deno cache --reload main.ts
+RUN deno cache --reload src/main.ts
 
 ENV PORT=8888
 EXPOSE 8888
