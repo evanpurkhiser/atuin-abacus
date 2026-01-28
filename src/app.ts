@@ -3,7 +3,7 @@ import {cache} from 'hono/cache';
 import {cors} from 'hono/cors';
 import {HTTPException} from 'hono/http-exception';
 
-import type {DailyCommandCount, Period, TimeOfDayStats} from './db.ts';
+import type {DailyCommandCount, Period, TimeOfDayStats, TotalCommands} from './db.ts';
 
 /**
  * Get the system's default timezone using Temporal API
@@ -66,6 +66,7 @@ export interface DbFunctions {
   testConnection: () => Promise<boolean>;
   getCommandsPerDay: (opts: Period) => Promise<DailyCommandCount[]>;
   getTimeOfDayStats: (opts: Period) => Promise<TimeOfDayStats>;
+  getTotalCommands: (opts: Period) => Promise<TotalCommands>;
 }
 
 interface Variables {
@@ -151,6 +152,13 @@ export function createApp(db: DbFunctions, cacheTtlSeconds = 300) {
   app.get('/time-of-day', cacheMiddleware, async c => {
     const period = getPeriodFromContext(c);
     const data = await db.getTimeOfDayStats(period);
+    return c.json(data);
+  });
+
+  // Total commands at root (with caching)
+  app.get('/', cacheMiddleware, async c => {
+    const period = getPeriodFromContext(c);
+    const data = await db.getTotalCommands(period);
     return c.json(data);
   });
 

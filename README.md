@@ -12,9 +12,13 @@ deno task dev
 
 ## API
 
+### GET /
+
+Returns total command count. Optional `?start=YYYY-MM-DD&end=YYYY-MM-DD` params.
+
 ### GET /history
 
-Returns daily command counts. Optional `?start=YYYY-MM-DD&end=YYYY-MM-DD` params.
+Returns daily command counts. Optional date params.
 
 ### GET /time-of-day
 

@@ -20,6 +20,10 @@ export interface Period {
   timezone: string;
 }
 
+export interface TotalCommands {
+  total: number;
+}
+
 /**
  * Get the count of commands run per day within a date range
  */
@@ -67,6 +71,53 @@ export async function getCommandsPerDay(opts: Period): Promise<DailyCommandCount
       date: row.date.toISOString().split('T')[0],
       count: Number(row.count),
     }));
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Get the total count of all commands
+ */
+export async function getTotalCommands(opts: Period): Promise<TotalCommands> {
+  const {startDate, endDate, timezone} = opts;
+  const client = await pool.connect();
+  try {
+    // Union query to combine both old history table and new store table
+    let query = `
+      WITH combined AS (
+        -- Old history table
+        SELECT timestamp AT TIME ZONE $1 as ts
+        FROM history
+        WHERE deleted_at IS NULL
+
+        UNION ALL
+
+        -- New store table (timestamps are in nanoseconds, convert to seconds)
+        SELECT to_timestamp(timestamp / 1000000000.0) AT TIME ZONE $1 as ts
+        FROM store
+        WHERE tag = 'history'
+      )
+      SELECT COUNT(*) as total
+      FROM combined
+      WHERE 1=1
+    `;
+    const params: string[] = [timezone];
+
+    if (startDate) {
+      params.push(startDate);
+      query += ` AND date(ts) >= $${params.length}`;
+    }
+    if (endDate) {
+      params.push(endDate);
+      query += ` AND date(ts) <= $${params.length}`;
+    }
+
+    const result = await client.queryObject<{total: number}>(query, params);
+
+    return {
+      total: Number(result.rows[0].total),
+    };
   } finally {
     client.release();
   }

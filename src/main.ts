@@ -1,10 +1,16 @@
 import {createApp} from './app.ts';
 import {getConfig} from './config.ts';
-import {closePool, getCommandsPerDay, getTimeOfDayStats, testConnection} from './db.ts';
+import {
+  closePool,
+  getCommandsPerDay,
+  getTimeOfDayStats,
+  getTotalCommands,
+  testConnection,
+} from './db.ts';
 
 const config = getConfig();
 const app = createApp(
-  {testConnection, getCommandsPerDay, getTimeOfDayStats},
+  {testConnection, getCommandsPerDay, getTimeOfDayStats, getTotalCommands},
   config.cacheTtlSeconds
 );
 

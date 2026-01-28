@@ -15,6 +15,10 @@ const mockDb: DbFunctions = {
     Promise.resolve({
       hourly: Array(24).fill(5),
     }),
+  getTotalCommands: () =>
+    Promise.resolve({
+      total: 296378,
+    }),
 };
 
 const app = createApp(mockDb, 300);
@@ -52,9 +56,7 @@ Deno.test('History endpoint returns valid data', async () => {
 Deno.test('History endpoint with date range', async () => {
   const start = '2024-01-01';
   const end = '2024-12-31';
-  const req = new Request(
-    `http://localhost/history?start=${start}&end=${end}`
-  );
+  const req = new Request(`http://localhost/history?start=${start}&end=${end}`);
   const res = await app.fetch(req);
 
   assertEquals(res.status, 200);
@@ -75,9 +77,7 @@ Deno.test('History endpoint with invalid date format', async () => {
 });
 
 Deno.test('History endpoint with end before start', async () => {
-  const req = new Request(
-    'http://localhost/history?start=2024-12-31&end=2024-01-01'
-  );
+  const req = new Request('http://localhost/history?start=2024-12-31&end=2024-01-01');
   const res = await app.fetch(req);
 
   assertEquals(res.status, 400);
@@ -117,9 +117,7 @@ Deno.test('Time of day endpoint with date range', async () => {
 });
 
 Deno.test('Cache-Control headers are present', async () => {
-  const req = new Request(
-    'http://localhost/history?start=2024-01-01&end=2024-01-31'
-  );
+  const req = new Request('http://localhost/history?start=2024-01-01&end=2024-01-31');
   const res = await app.fetch(req);
   await res.json(); // Consume the body
 
@@ -207,4 +205,41 @@ Deno.test('Time of day with timezone in Prefer header', async () => {
   assertEquals(res.status, 200);
   const data = await res.json();
   assertEquals(data.hourly.length, 24);
+});
+
+Deno.test('Root endpoint returns total commands', async () => {
+  const req = new Request('http://localhost/');
+  const res = await app.fetch(req);
+
+  assertEquals(res.status, 200);
+  assert(res.headers.get('content-type')?.includes('application/json'));
+
+  const data = await res.json();
+  assertExists(data.total);
+  assert(typeof data.total === 'number');
+  assert(data.total >= 0);
+});
+
+Deno.test('Root endpoint with date range', async () => {
+  const start = '2024-01-01';
+  const end = '2024-12-31';
+  const req = new Request(`http://localhost/?start=${start}&end=${end}`);
+  const res = await app.fetch(req);
+
+  assertEquals(res.status, 200);
+
+  const data = await res.json();
+  assertExists(data.total);
+  assert(typeof data.total === 'number');
+});
+
+Deno.test('Root endpoint with invalid date format', async () => {
+  const req = new Request('http://localhost/?start=invalid-date');
+  const res = await app.fetch(req);
+
+  assertEquals(res.status, 400);
+
+  const data = await res.json();
+  assertExists(data.error);
+  assert(data.error.includes('Invalid start date format'));
 });
