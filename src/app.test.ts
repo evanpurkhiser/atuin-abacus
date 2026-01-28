@@ -30,8 +30,8 @@ Deno.test('Health endpoint returns healthy status', async () => {
   assertEquals(data.database, 'connected');
 });
 
-Deno.test('Commands per day endpoint returns valid data', async () => {
-  const req = new Request('http://localhost/commands-per-day');
+Deno.test('History endpoint returns valid data', async () => {
+  const req = new Request('http://localhost/history');
   const res = await app.fetch(req);
 
   assertEquals(res.status, 200);
@@ -49,11 +49,11 @@ Deno.test('Commands per day endpoint returns valid data', async () => {
   assert(/^\d{4}-\d{2}-\d{2}$/.test(first.date));
 });
 
-Deno.test('Commands per day endpoint with date range', async () => {
+Deno.test('History endpoint with date range', async () => {
   const start = '2024-01-01';
   const end = '2024-12-31';
   const req = new Request(
-    `http://localhost/commands-per-day?start=${start}&end=${end}`
+    `http://localhost/history?start=${start}&end=${end}`
   );
   const res = await app.fetch(req);
 
@@ -63,8 +63,8 @@ Deno.test('Commands per day endpoint with date range', async () => {
   assert(Array.isArray(data));
 });
 
-Deno.test('Commands per day endpoint with invalid date format', async () => {
-  const req = new Request('http://localhost/commands-per-day?start=invalid-date');
+Deno.test('History endpoint with invalid date format', async () => {
+  const req = new Request('http://localhost/history?start=invalid-date');
   const res = await app.fetch(req);
 
   assertEquals(res.status, 400);
@@ -74,9 +74,9 @@ Deno.test('Commands per day endpoint with invalid date format', async () => {
   assert(data.error.includes('Invalid start date format'));
 });
 
-Deno.test('Commands per day endpoint with end before start', async () => {
+Deno.test('History endpoint with end before start', async () => {
   const req = new Request(
-    'http://localhost/commands-per-day?start=2024-12-31&end=2024-01-01'
+    'http://localhost/history?start=2024-12-31&end=2024-01-01'
   );
   const res = await app.fetch(req);
 
@@ -118,7 +118,7 @@ Deno.test('Time of day endpoint with date range', async () => {
 
 Deno.test('Cache-Control headers are present', async () => {
   const req = new Request(
-    'http://localhost/commands-per-day?start=2024-01-01&end=2024-01-31'
+    'http://localhost/history?start=2024-01-01&end=2024-01-31'
   );
   const res = await app.fetch(req);
   await res.json(); // Consume the body
@@ -148,7 +148,7 @@ Deno.test('404 for unknown endpoints', async () => {
 });
 
 Deno.test('404 for non-GET requests to API endpoints', async () => {
-  const req = new Request('http://localhost/commands-per-day', {
+  const req = new Request('http://localhost/history', {
     method: 'POST',
   });
   const res = await app.fetch(req);
@@ -161,7 +161,7 @@ Deno.test('404 for non-GET requests to API endpoints', async () => {
 });
 
 Deno.test('OPTIONS request succeeds for CORS preflight', async () => {
-  const req = new Request('http://localhost/commands-per-day', {
+  const req = new Request('http://localhost/history', {
     method: 'OPTIONS',
   });
   const res = await app.fetch(req);
@@ -169,8 +169,8 @@ Deno.test('OPTIONS request succeeds for CORS preflight', async () => {
   assertEquals(res.status, 204);
 });
 
-Deno.test('Commands per day with valid timezone in Prefer header', async () => {
-  const req = new Request('http://localhost/commands-per-day', {
+Deno.test('History with valid timezone in Prefer header', async () => {
+  const req = new Request('http://localhost/history', {
     headers: {
       prefer: 'timezone=America/Los_Angeles',
     },
@@ -183,7 +183,7 @@ Deno.test('Commands per day with valid timezone in Prefer header', async () => {
 });
 
 Deno.test('Invalid timezone in Prefer header returns 400', async () => {
-  const req = new Request('http://localhost/commands-per-day', {
+  const req = new Request('http://localhost/history', {
     headers: {
       prefer: 'timezone=Invalid/Timezone',
     },

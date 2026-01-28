@@ -140,8 +140,8 @@ export function createApp(db: DbFunctions, cacheTtlSeconds = 300) {
     );
   });
 
-  // Commands per day (with caching)
-  app.get('/commands-per-day', cacheMiddleware, async c => {
+  // History (with caching)
+  app.get('/history', cacheMiddleware, async c => {
     const period = getPeriodFromContext(c);
     const data = await db.getCommandsPerDay(period);
     return c.json(data);
