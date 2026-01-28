@@ -141,14 +141,14 @@ export function createApp(db: DbFunctions, cacheTtlSeconds = 300) {
   });
 
   // Commands per day (with caching)
-  app.get('/api/commands-per-day', cacheMiddleware, async c => {
+  app.get('/commands-per-day', cacheMiddleware, async c => {
     const period = getPeriodFromContext(c);
     const data = await db.getCommandsPerDay(period);
     return c.json(data);
   });
 
   // Time of day stats (with caching)
-  app.get('/api/time-of-day', cacheMiddleware, async c => {
+  app.get('/time-of-day', cacheMiddleware, async c => {
     const period = getPeriodFromContext(c);
     const data = await db.getTimeOfDayStats(period);
     return c.json(data);

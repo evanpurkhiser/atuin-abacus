@@ -31,7 +31,7 @@ Deno.test('Health endpoint returns healthy status', async () => {
 });
 
 Deno.test('Commands per day endpoint returns valid data', async () => {
-  const req = new Request('http://localhost/api/commands-per-day');
+  const req = new Request('http://localhost/commands-per-day');
   const res = await app.fetch(req);
 
   assertEquals(res.status, 200);
@@ -53,7 +53,7 @@ Deno.test('Commands per day endpoint with date range', async () => {
   const start = '2024-01-01';
   const end = '2024-12-31';
   const req = new Request(
-    `http://localhost/api/commands-per-day?start=${start}&end=${end}`
+    `http://localhost/commands-per-day?start=${start}&end=${end}`
   );
   const res = await app.fetch(req);
 
@@ -64,7 +64,7 @@ Deno.test('Commands per day endpoint with date range', async () => {
 });
 
 Deno.test('Commands per day endpoint with invalid date format', async () => {
-  const req = new Request('http://localhost/api/commands-per-day?start=invalid-date');
+  const req = new Request('http://localhost/commands-per-day?start=invalid-date');
   const res = await app.fetch(req);
 
   assertEquals(res.status, 400);
@@ -76,7 +76,7 @@ Deno.test('Commands per day endpoint with invalid date format', async () => {
 
 Deno.test('Commands per day endpoint with end before start', async () => {
   const req = new Request(
-    'http://localhost/api/commands-per-day?start=2024-12-31&end=2024-01-01'
+    'http://localhost/commands-per-day?start=2024-12-31&end=2024-01-01'
   );
   const res = await app.fetch(req);
 
@@ -88,7 +88,7 @@ Deno.test('Commands per day endpoint with end before start', async () => {
 });
 
 Deno.test('Time of day endpoint returns 24 hour array', async () => {
-  const req = new Request('http://localhost/api/time-of-day');
+  const req = new Request('http://localhost/time-of-day');
   const res = await app.fetch(req);
 
   assertEquals(res.status, 200);
@@ -107,7 +107,7 @@ Deno.test('Time of day endpoint returns 24 hour array', async () => {
 Deno.test('Time of day endpoint with date range', async () => {
   const start = '2024-01-01';
   const end = '2024-12-31';
-  const req = new Request(`http://localhost/api/time-of-day?start=${start}&end=${end}`);
+  const req = new Request(`http://localhost/time-of-day?start=${start}&end=${end}`);
   const res = await app.fetch(req);
 
   assertEquals(res.status, 200);
@@ -118,7 +118,7 @@ Deno.test('Time of day endpoint with date range', async () => {
 
 Deno.test('Cache-Control headers are present', async () => {
   const req = new Request(
-    'http://localhost/api/commands-per-day?start=2024-01-01&end=2024-01-31'
+    'http://localhost/commands-per-day?start=2024-01-01&end=2024-01-31'
   );
   const res = await app.fetch(req);
   await res.json(); // Consume the body
@@ -138,7 +138,7 @@ Deno.test('CORS headers are present', async () => {
 });
 
 Deno.test('404 for unknown endpoints', async () => {
-  const req = new Request('http://localhost/api/unknown');
+  const req = new Request('http://localhost/unknown');
   const res = await app.fetch(req);
 
   assertEquals(res.status, 404);
@@ -148,7 +148,7 @@ Deno.test('404 for unknown endpoints', async () => {
 });
 
 Deno.test('404 for non-GET requests to API endpoints', async () => {
-  const req = new Request('http://localhost/api/commands-per-day', {
+  const req = new Request('http://localhost/commands-per-day', {
     method: 'POST',
   });
   const res = await app.fetch(req);
@@ -161,7 +161,7 @@ Deno.test('404 for non-GET requests to API endpoints', async () => {
 });
 
 Deno.test('OPTIONS request succeeds for CORS preflight', async () => {
-  const req = new Request('http://localhost/api/commands-per-day', {
+  const req = new Request('http://localhost/commands-per-day', {
     method: 'OPTIONS',
   });
   const res = await app.fetch(req);
@@ -170,7 +170,7 @@ Deno.test('OPTIONS request succeeds for CORS preflight', async () => {
 });
 
 Deno.test('Commands per day with valid timezone in Prefer header', async () => {
-  const req = new Request('http://localhost/api/commands-per-day', {
+  const req = new Request('http://localhost/commands-per-day', {
     headers: {
       prefer: 'timezone=America/Los_Angeles',
     },
@@ -183,7 +183,7 @@ Deno.test('Commands per day with valid timezone in Prefer header', async () => {
 });
 
 Deno.test('Invalid timezone in Prefer header returns 400', async () => {
-  const req = new Request('http://localhost/api/commands-per-day', {
+  const req = new Request('http://localhost/commands-per-day', {
     headers: {
       prefer: 'timezone=Invalid/Timezone',
     },
@@ -197,7 +197,7 @@ Deno.test('Invalid timezone in Prefer header returns 400', async () => {
 });
 
 Deno.test('Time of day with timezone in Prefer header', async () => {
-  const req = new Request('http://localhost/api/time-of-day', {
+  const req = new Request('http://localhost/time-of-day', {
     headers: {
       prefer: 'timezone=Europe/London',
     },
