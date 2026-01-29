@@ -13,20 +13,10 @@ import {
   getCommandsPerDay,
   getTimeOfDayStats,
   getTotalCommands,
-  testConnection,
 } from './db.ts';
 
 // Setup test database before all tests
 await setupTestDatabase();
-
-Deno.test({
-  name: 'Database connection',
-  sanitizeResources: false,
-  fn: async () => {
-    const connected = await testConnection();
-    assertEquals(connected, true);
-  },
-});
 
 Deno.test('getCommandsPerDay - returns correct data from fixtures', async () => {
   const result = await getCommandsPerDay({timezone: 'UTC'});

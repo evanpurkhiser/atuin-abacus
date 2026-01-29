@@ -100,17 +100,6 @@ Get average command distribution across 24 hours.
 }
 ```
 
-### `GET /health`
-
-Health check endpoint that verifies database connectivity.
-
-**Example Response:**
-```json
-{
-  "status": "healthy"
-}
-```
-
 ## Configuration
 
 Set these environment variables in `.env` or pass them to Docker:

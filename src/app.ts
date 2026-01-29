@@ -63,7 +63,6 @@ function validateDateParams(start?: string, end?: string): string | null {
 }
 
 export interface DbFunctions {
-  testConnection: () => Promise<boolean>;
   getCommandsPerDay: (opts: Period) => Promise<DailyCommandCount[]>;
   getTimeOfDayStats: (opts: Period) => Promise<TimeOfDayStats>;
   getTotalCommands: (opts: Period) => Promise<TotalCommands>;
@@ -128,18 +127,6 @@ export function createApp(db: DbFunctions, cacheTtlSeconds = 300) {
 
     c.set('timezone', requestedTimezone);
     return next();
-  });
-
-  // Health check (no caching)
-  app.get('/health', async c => {
-    const isHealthy = await db.testConnection();
-    return c.json(
-      {
-        status: isHealthy ? 'healthy' : 'unhealthy',
-        database: isHealthy ? 'connected' : 'disconnected',
-      },
-      isHealthy ? 200 : 503
-    );
   });
 
   // History

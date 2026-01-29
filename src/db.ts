@@ -206,21 +206,6 @@ export async function getTimeOfDayStats(opts: Period): Promise<TimeOfDayStats> {
 }
 
 /**
- * Test database connection
- */
-export async function testConnection(): Promise<boolean> {
-  try {
-    const client = await pool.connect();
-    await client.queryObject('SELECT 1');
-    client.release();
-    return true;
-  } catch (error) {
-    console.error('Database connection failed:', error);
-    return false;
-  }
-}
-
-/**
  * Close the database pool
  */
 export async function closePool(): Promise<void> {

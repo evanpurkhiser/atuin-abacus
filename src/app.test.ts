@@ -5,7 +5,6 @@ import {createApp} from './app.ts';
 
 // Mock database functions
 const mockDb: DbFunctions = {
-  testConnection: () => Promise.resolve(true),
   getCommandsPerDay: () =>
     Promise.resolve([
       {date: '2024-01-01', count: 42},
@@ -22,17 +21,6 @@ const mockDb: DbFunctions = {
 };
 
 const app = createApp(mockDb, 300);
-
-Deno.test('Health endpoint returns healthy status', async () => {
-  const req = new Request('http://localhost/health');
-  const res = await app.fetch(req);
-
-  assertEquals(res.status, 200);
-
-  const data = await res.json();
-  assertEquals(data.status, 'healthy');
-  assertEquals(data.database, 'connected');
-});
 
 Deno.test('History endpoint returns valid data', async () => {
   const req = new Request('http://localhost/history');
