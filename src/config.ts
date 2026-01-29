@@ -1,7 +1,10 @@
 import {load} from '@std/dotenv';
 
 // Load .env file (silently ignored if it doesn't exist)
-await load({export: true});
+// Skip loading .env if .env.test was already loaded (for tests)
+if (!Deno.env.get('SKIP_ENV_LOAD')) {
+  await load({export: true});
+}
 
 export interface Config {
   port: number;

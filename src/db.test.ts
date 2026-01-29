@@ -1,6 +1,23 @@
-import {assert, assertEquals, assertGreater} from '@std/assert';
+import {assert, assertEquals} from '@std/assert';
+import {load} from '@std/dotenv';
 
-import {getCommandsPerDay, getTimeOfDayStats, testConnection} from './db.ts';
+import {setupTestDatabase} from '../test/setup.ts';
+
+// IMPORTANT: Load test env file BEFORE importing any modules that read env vars
+Deno.env.set('SKIP_ENV_LOAD', '1');
+await load({envPath: '.env.test', export: true});
+
+// Now import db functions after setting the env var
+import {
+  closePool,
+  getCommandsPerDay,
+  getTimeOfDayStats,
+  getTotalCommands,
+  testConnection,
+} from './db.ts';
+
+// Setup test database before all tests
+await setupTestDatabase();
 
 Deno.test({
   name: 'Database connection',
@@ -11,61 +28,77 @@ Deno.test({
   },
 });
 
-Deno.test('getCommandsPerDay - returns data in correct format', async () => {
-  const result = await getCommandsPerDay({timezone: 'America/Los_Angeles'});
+Deno.test('getCommandsPerDay - returns correct data from fixtures', async () => {
+  const result = await getCommandsPerDay({timezone: 'UTC'});
 
   // Should return an array
   assert(Array.isArray(result));
 
-  if (result.length > 0) {
-    // Check first item has correct shape
-    const first = result[0];
-    assert('date' in first);
-    assert('count' in first);
-    assert(typeof first.date === 'string');
-    assert(typeof first.count === 'number');
+  // Should have data from both history table (2024-01-01, 2024-01-02)
+  // and store table (2026-01-01, 2026-01-02)
+  assert(result.length >= 4, `Expected at least 4 days, got ${result.length}`);
 
-    // Date should be in YYYY-MM-DD format
-    assert(/^\d{4}-\d{2}-\d{2}$/.test(first.date));
+  // Check first item has correct shape
+  const first = result[0];
+  assert('date' in first);
+  assert('count' in first);
+  assert(typeof first.date === 'string');
+  assert(typeof first.count === 'number');
 
-    // Count should be positive
-    assertGreater(first.count, 0);
-  }
+  // Date should be in YYYY-MM-DD format
+  assert(/^\d{4}-\d{2}-\d{2}$/.test(first.date));
+
+  // Find specific test dates
+  const jan1_2024 = result.find(r => r.date === '2024-01-01');
+  const jan2_2024 = result.find(r => r.date === '2024-01-02');
+  const jan1_2026 = result.find(r => r.date === '2026-01-01');
+  const jan2_2026 = result.find(r => r.date === '2026-01-02');
+
+  // Verify fixture data
+  assertEquals(jan1_2024?.count, 5, 'Jan 1 2024 should have 5 commands');
+  assertEquals(jan2_2024?.count, 3, 'Jan 2 2024 should have 3 commands');
+  assertEquals(jan1_2026?.count, 5, 'Jan 1 2026 should have 5 commands');
+  assertEquals(jan2_2026?.count, 3, 'Jan 2 2026 should have 3 commands');
 });
 
-Deno.test('getCommandsPerDay - with date range', async () => {
-  const startDate = '2024-01-01';
-  const endDate = '2024-12-31';
-
+Deno.test('getCommandsPerDay - with date range filters correctly', async () => {
   const result = await getCommandsPerDay({
-    startDate,
-    endDate,
-    timezone: 'America/Los_Angeles',
+    startDate: '2024-01-01',
+    endDate: '2024-01-02',
+    timezone: 'UTC',
   });
 
-  // Should return an array
+  // Should only have 2024 data
   assert(Array.isArray(result));
+  assertEquals(result.length, 2, 'Should have exactly 2 days in 2024 range');
 
-  // Due to timezone conversions, dates near boundaries might shift slightly
-  // Just verify we got results and they're mostly in range
-  if (result.length > 0) {
-    // At least some results should be in range
-    const inRange = result.filter(item => item.date >= startDate && item.date <= endDate);
-    assert(inRange.length > 0, 'Should have at least some results in the date range');
-  }
+  // Should not include 2026 data
+  const has2026Data = result.some(r => r.date.startsWith('2026'));
+  assert(!has2026Data, 'Should not include 2026 data when filtering to 2024');
 });
 
 Deno.test('getCommandsPerDay - results are sorted by date', async () => {
-  const result = await getCommandsPerDay({timezone: 'America/Los_Angeles'});
+  const result = await getCommandsPerDay({timezone: 'UTC'});
 
   // Check dates are in ascending order
   for (let i = 1; i < result.length; i++) {
-    assert(result[i].date >= result[i - 1].date);
+    assert(
+      result[i].date >= result[i - 1].date,
+      `Dates not sorted: ${result[i - 1].date} > ${result[i].date}`
+    );
   }
 });
 
+Deno.test('getCommandsPerDay - excludes deleted records', async () => {
+  const result = await getCommandsPerDay({timezone: 'UTC'});
+
+  // Should not include 2024-01-03 (deleted entry)
+  const jan3 = result.find(r => r.date === '2024-01-03');
+  assert(!jan3, 'Should not include deleted records');
+});
+
 Deno.test('getTimeOfDayStats - returns 24 hour array', async () => {
-  const result = await getTimeOfDayStats({timezone: 'America/Los_Angeles'});
+  const result = await getTimeOfDayStats({timezone: 'UTC'});
 
   // Should have hourly array
   assert('hourly' in result);
@@ -81,22 +114,75 @@ Deno.test('getTimeOfDayStats - returns 24 hour array', async () => {
   }
 });
 
-Deno.test('getTimeOfDayStats - with date range', async () => {
-  const startDate = '2024-01-01';
-  const endDate = '2024-12-31';
+Deno.test('getTimeOfDayStats - calculates averages correctly', async () => {
+  const result = await getTimeOfDayStats({timezone: 'UTC'});
 
+  // Based on fixtures, we have commands at:
+  // 09:00 (4 days), 10:00 (4 days), 11:00 (4 days), 14:00 (2 days), 15:00 (2 days)
+  // Spread across 4 unique days
+
+  // Hour 9 should have average of 4 commands / 4 days = 1.0
+  assertEquals(result.hourly[9], 1.0, 'Hour 9 should average 1.0 commands/day');
+
+  // Hour 10 should have average of 4 commands / 4 days = 1.0
+  assertEquals(result.hourly[10], 1.0, 'Hour 10 should average 1.0 commands/day');
+
+  // Hour 11 should have average of 4 commands / 4 days = 1.0
+  assertEquals(result.hourly[11], 1.0, 'Hour 11 should average 1.0 commands/day');
+
+  // Hour 14 should have average of 2 commands / 4 days = 0.5
+  assertEquals(result.hourly[14], 0.5, 'Hour 14 should average 0.5 commands/day');
+
+  // Hour 15 should have average of 2 commands / 4 days = 0.5
+  assertEquals(result.hourly[15], 0.5, 'Hour 15 should average 0.5 commands/day');
+
+  // Hours with no commands should be 0
+  assertEquals(result.hourly[0], 0, 'Hour 0 should be 0');
+  assertEquals(result.hourly[23], 0, 'Hour 23 should be 0');
+});
+
+Deno.test('getTimeOfDayStats - with date range', async () => {
   const result = await getTimeOfDayStats({
-    startDate,
-    endDate,
-    timezone: 'America/Los_Angeles',
+    startDate: '2024-01-01',
+    endDate: '2024-01-02',
+    timezone: 'UTC',
   });
 
   // Should still have 24 hours
   assertEquals(result.hourly.length, 24);
 
-  // Each value should be a number >= 0
-  for (const count of result.hourly) {
-    assert(typeof count === 'number');
-    assert(count >= 0);
-  }
+  // With only 2024 data (2 days):
+  // Hour 9: 2 commands / 2 days = 1.0
+  assertEquals(result.hourly[9], 1.0, 'Hour 9 in 2024 range should average 1.0');
+});
+
+Deno.test('getTotalCommands - returns correct total', async () => {
+  const result = await getTotalCommands({timezone: 'UTC'});
+
+  // Should have total field
+  assert('total' in result);
+  assert(typeof result.total === 'number');
+
+  // Total should be 16: 8 from history + 8 from store
+  assertEquals(result.total, 16, 'Total should be 16 commands');
+});
+
+Deno.test('getTotalCommands - with date range', async () => {
+  const result = await getTotalCommands({
+    startDate: '2024-01-01',
+    endDate: '2024-01-02',
+    timezone: 'UTC',
+  });
+
+  // Should only count 2024 data: 5 + 3 = 8
+  assertEquals(result.total, 8, 'Total for 2024-01-01 to 2024-01-02 should be 8');
+});
+
+// Cleanup: Close database pool to prevent resource leaks
+Deno.test({
+  name: 'Cleanup database connections',
+  sanitizeResources: false,
+  fn: async () => {
+    await closePool();
+  },
 });

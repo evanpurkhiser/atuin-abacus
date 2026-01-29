@@ -103,6 +103,7 @@ export function createApp(db: DbFunctions, cacheTtlSeconds = 300) {
   app.use('*', cors());
 
   // Timezone middleware - parse Prefer header and set timezone in context
+  // deno-lint-ignore require-await
   app.use('*', async (c, next) => {
     const preferHeader = c.req.header('prefer');
 

@@ -9,6 +9,21 @@ jobs:
     name: Test and Lint
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: atuin_test
+          POSTGRES_PASSWORD: atuin_test
+          POSTGRES_DB: atuin_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,7 +36,8 @@ jobs:
       - name: Run tests
         run: deno task test
         env:
-          DATABASE_URL: postgresql://atuin:password@server:5432/atuin
+          DATABASE_URL: postgresql://atuin_test:atuin_test@localhost:5432/atuin_test
+          TZ: UTC
 
       - name: Run linter
         run: deno task lint
