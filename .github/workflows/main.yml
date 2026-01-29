@@ -2,8 +2,12 @@ name: build
 on: [push]
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   build:
     name: build
+    needs: ci
 
     permissions:
       packages: write
