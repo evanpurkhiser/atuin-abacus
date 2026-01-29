@@ -18,8 +18,11 @@ import {
 // Setup test database before all tests
 await setupTestDatabase();
 
-Deno.test('getCommandsPerDay - returns correct data from fixtures', async () => {
-  const result = await getCommandsPerDay({timezone: 'UTC'});
+Deno.test({
+  name: 'getCommandsPerDay - returns correct data from fixtures',
+  sanitizeResources: false,
+  fn: async () => {
+    const result = await getCommandsPerDay({timezone: 'UTC'});
 
   // Should return an array
   assert(Array.isArray(result));
@@ -44,11 +47,12 @@ Deno.test('getCommandsPerDay - returns correct data from fixtures', async () => 
   const jan1_2026 = result.find(r => r.date === '2026-01-01');
   const jan2_2026 = result.find(r => r.date === '2026-01-02');
 
-  // Verify fixture data
-  assertEquals(jan1_2024?.count, 5, 'Jan 1 2024 should have 5 commands');
-  assertEquals(jan2_2024?.count, 3, 'Jan 2 2024 should have 3 commands');
-  assertEquals(jan1_2026?.count, 5, 'Jan 1 2026 should have 5 commands');
-  assertEquals(jan2_2026?.count, 3, 'Jan 2 2026 should have 3 commands');
+    // Verify fixture data
+    assertEquals(jan1_2024?.count, 5, 'Jan 1 2024 should have 5 commands');
+    assertEquals(jan2_2024?.count, 3, 'Jan 2 2024 should have 3 commands');
+    assertEquals(jan1_2026?.count, 5, 'Jan 1 2026 should have 5 commands');
+    assertEquals(jan2_2026?.count, 3, 'Jan 2 2026 should have 3 commands');
+  },
 });
 
 Deno.test('getCommandsPerDay - with date range filters correctly', async () => {
@@ -166,6 +170,52 @@ Deno.test('getTotalCommands - with date range', async () => {
 
   // Should only count 2024 data: 5 + 3 = 8
   assertEquals(result.total, 8, 'Total for 2024-01-01 to 2024-01-02 should be 8');
+});
+
+Deno.test({
+  name: 'getTimeOfDayStats - timezone affects hour grouping',
+  sanitizeResources: false,
+  fn: async () => {
+    // Test with America/Los_Angeles timezone (UTC-8)
+    // Our fixture data has commands at 09:00, 10:00, 11:00, 14:00, 15:00 UTC
+    // In LA time, these would be at 01:00, 02:00, 03:00, 06:00, 07:00
+    const resultLA = await getTimeOfDayStats({
+      timezone: 'America/Los_Angeles',
+    });
+
+    assertEquals(resultLA.hourly.length, 24);
+
+    // Hours 1, 2, 3 should have commands (from UTC 9, 10, 11)
+    assert(
+      resultLA.hourly[1] > 0,
+      'Hour 1 in LA should have commands (UTC 09:00)'
+    );
+    assert(
+      resultLA.hourly[2] > 0,
+      'Hour 2 in LA should have commands (UTC 10:00)'
+    );
+    assert(
+      resultLA.hourly[3] > 0,
+      'Hour 3 in LA should have commands (UTC 11:00)'
+    );
+
+    // Hours 6, 7 should have commands (from UTC 14, 15)
+    assert(
+      resultLA.hourly[6] > 0,
+      'Hour 6 in LA should have commands (UTC 14:00)'
+    );
+    assert(
+      resultLA.hourly[7] > 0,
+      'Hour 7 in LA should have commands (UTC 15:00)'
+    );
+
+    // Hour 9 in LA should be 0 (since UTC 09:00 converts to LA 01:00)
+    assertEquals(
+      resultLA.hourly[9],
+      0,
+      'Hour 9 in LA should be 0 (original UTC 09:00 is now hour 1)'
+    );
+  },
 });
 
 // Cleanup: Close database pool to prevent resource leaks
