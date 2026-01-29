@@ -2,12 +2,49 @@ name: build
 on: [push]
 
 jobs:
-  ci:
-    uses: ./.github/workflows/ci.yml
+  test-and-lint:
+    name: Test and Lint
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: atuin_test
+          POSTGRES_PASSWORD: atuin_test
+          POSTGRES_DB: atuin_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Run tests
+        run: deno task test
+        env:
+          DATABASE_URL: postgresql://atuin_test:atuin_test@localhost:5432/atuin_test
+          TZ: UTC
+
+      - name: Run linter
+        run: deno task lint
+
+      - name: Check formatting
+        run: deno task format:check
 
   build:
     name: build
-    needs: ci
+    needs: test-and-lint
 
     permissions:
       packages: write
