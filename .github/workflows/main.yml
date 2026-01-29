@@ -42,8 +42,8 @@ jobs:
       - name: Check formatting
         run: deno task format:check
 
-  build:
-    name: build
+  deploy:
+    name: Deploy
     needs: test-and-lint
 
     permissions:
