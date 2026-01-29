@@ -1,7 +1,7 @@
 import {Pool} from 'postgres';
 
 const TEST_DATABASE_URL =
-  Deno.env.get('TEST_DATABASE_URL') ||
+  Deno.env.get('DATABASE_URL') ||
   'postgresql://atuin_test:atuin_test@127.0.0.1:5433/atuin_test';
 
 /**
