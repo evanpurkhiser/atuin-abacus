@@ -8,12 +8,7 @@ Deno.env.set('SKIP_ENV_LOAD', '1');
 await load({envPath: '.env.test', export: true});
 
 // Now import db functions after setting the env var
-import {
-  closePool,
-  getCommandsPerDay,
-  getTimeOfDayStats,
-  getTotalCommands,
-} from './db.ts';
+import {closePool, getCommandsPerDay, getTimeOfDayStats, getTotalCommands} from './db.ts';
 
 // Setup test database before all tests
 await setupTestDatabase();
@@ -24,28 +19,28 @@ Deno.test({
   fn: async () => {
     const result = await getCommandsPerDay({timezone: 'UTC'});
 
-  // Should return an array
-  assert(Array.isArray(result));
+    // Should return an array
+    assert(Array.isArray(result));
 
-  // Should have data from both history table (2024-01-01, 2024-01-02)
-  // and store table (2026-01-01, 2026-01-02)
-  assert(result.length >= 4, `Expected at least 4 days, got ${result.length}`);
+    // Should have data from both history table (2024-01-01, 2024-01-02)
+    // and store table (2026-01-01, 2026-01-02)
+    assert(result.length >= 4, `Expected at least 4 days, got ${result.length}`);
 
-  // Check first item has correct shape
-  const first = result[0];
-  assert('date' in first);
-  assert('count' in first);
-  assert(typeof first.date === 'string');
-  assert(typeof first.count === 'number');
+    // Check first item has correct shape
+    const first = result[0];
+    assert('date' in first);
+    assert('count' in first);
+    assert(typeof first.date === 'string');
+    assert(typeof first.count === 'number');
 
-  // Date should be in YYYY-MM-DD format
-  assert(/^\d{4}-\d{2}-\d{2}$/.test(first.date));
+    // Date should be in YYYY-MM-DD format
+    assert(/^\d{4}-\d{2}-\d{2}$/.test(first.date));
 
-  // Find specific test dates
-  const jan1_2024 = result.find(r => r.date === '2024-01-01');
-  const jan2_2024 = result.find(r => r.date === '2024-01-02');
-  const jan1_2026 = result.find(r => r.date === '2026-01-01');
-  const jan2_2026 = result.find(r => r.date === '2026-01-02');
+    // Find specific test dates
+    const jan1_2024 = result.find(r => r.date === '2024-01-01');
+    const jan2_2024 = result.find(r => r.date === '2024-01-02');
+    const jan1_2026 = result.find(r => r.date === '2026-01-01');
+    const jan2_2026 = result.find(r => r.date === '2026-01-02');
 
     // Verify fixture data
     assertEquals(jan1_2024?.count, 5, 'Jan 1 2024 should have 5 commands');
@@ -186,28 +181,13 @@ Deno.test({
     assertEquals(resultLA.hourly.length, 24);
 
     // Hours 1, 2, 3 should have commands (from UTC 9, 10, 11)
-    assert(
-      resultLA.hourly[1] > 0,
-      'Hour 1 in LA should have commands (UTC 09:00)'
-    );
-    assert(
-      resultLA.hourly[2] > 0,
-      'Hour 2 in LA should have commands (UTC 10:00)'
-    );
-    assert(
-      resultLA.hourly[3] > 0,
-      'Hour 3 in LA should have commands (UTC 11:00)'
-    );
+    assert(resultLA.hourly[1] > 0, 'Hour 1 in LA should have commands (UTC 09:00)');
+    assert(resultLA.hourly[2] > 0, 'Hour 2 in LA should have commands (UTC 10:00)');
+    assert(resultLA.hourly[3] > 0, 'Hour 3 in LA should have commands (UTC 11:00)');
 
     // Hours 6, 7 should have commands (from UTC 14, 15)
-    assert(
-      resultLA.hourly[6] > 0,
-      'Hour 6 in LA should have commands (UTC 14:00)'
-    );
-    assert(
-      resultLA.hourly[7] > 0,
-      'Hour 7 in LA should have commands (UTC 15:00)'
-    );
+    assert(resultLA.hourly[6] > 0, 'Hour 6 in LA should have commands (UTC 14:00)');
+    assert(resultLA.hourly[7] > 0, 'Hour 7 in LA should have commands (UTC 15:00)');
 
     // Hour 9 in LA should be 0 (since UTC 09:00 converts to LA 01:00)
     assertEquals(

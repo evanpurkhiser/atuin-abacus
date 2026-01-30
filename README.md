@@ -44,6 +44,7 @@ deno task dev
 ## API Reference
 
 All endpoints support timezone specification via the `Prefer` header:
+
 ```bash
 curl -H "Prefer: timezone=America/Los_Angeles" http://localhost:8000/history
 ```
@@ -53,10 +54,12 @@ curl -H "Prefer: timezone=America/Los_Angeles" http://localhost:8000/history
 Get total command count across all history.
 
 **Query Parameters:**
+
 - `start` (optional): Start date in `YYYY-MM-DD` format
 - `end` (optional): End date in `YYYY-MM-DD` format
 
 **Example Response:**
+
 ```json
 {
   "total": 42891
@@ -68,15 +71,17 @@ Get total command count across all history.
 Get daily command counts over time.
 
 **Query Parameters:**
+
 - `start` (optional): Start date in `YYYY-MM-DD` format
 - `end` (optional): End date in `YYYY-MM-DD` format
 
 **Example Response:**
+
 ```json
 [
-  { "date": "2024-01-15", "count": 234 },
-  { "date": "2024-01-16", "count": 189 },
-  { "date": "2024-01-17", "count": 312 }
+  {"date": "2024-01-15", "count": 234},
+  {"date": "2024-01-16", "count": 189},
+  {"date": "2024-01-17", "count": 312}
 ]
 ```
 
@@ -85,16 +90,18 @@ Get daily command counts over time.
 Get average command distribution across 24 hours.
 
 **Query Parameters:**
+
 - `start` (optional): Start date in `YYYY-MM-DD` format
 - `end` (optional): End date in `YYYY-MM-DD` format
 
 **Example Response:**
+
 ```json
 {
   "hourly": [
-    0.5,  // 00:00 - 01:00
-    0.2,  // 01:00 - 02:00
-    0.1,  // 02:00 - 03:00
+    0.5, // 00:00 - 01:00
+    0.2, // 01:00 - 02:00
+    0.1 // 02:00 - 03:00
     // ... 24 values total
   ]
 }
