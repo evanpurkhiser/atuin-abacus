@@ -51,7 +51,7 @@ curl -H "Prefer: timezone=America/Los_Angeles" http://localhost:8000/history
 
 ### `GET /`
 
-Get total command count across all history.
+Get statistics including total command count and timestamp of the most recent command.
 
 **Query Parameters:**
 
@@ -62,7 +62,8 @@ Get total command count across all history.
 
 ```json
 {
-  "total": 42891
+  "total": 42891,
+  "lastCommandAt": "2026-01-30T16:38:11.317Z"
 }
 ```
 

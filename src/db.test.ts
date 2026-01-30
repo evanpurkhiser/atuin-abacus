@@ -8,7 +8,7 @@ Deno.env.set('SKIP_ENV_LOAD', '1');
 await load({envPath: '.env.test', export: true});
 
 // Now import db functions after setting the env var
-import {closePool, getCommandsPerDay, getTimeOfDayStats, getTotalCommands} from './db.ts';
+import {closePool, getCommandsPerDay, getStats, getTimeOfDayStats} from './db.ts';
 
 // Setup test database before all tests
 await setupTestDatabase();
@@ -145,8 +145,8 @@ Deno.test('getTimeOfDayStats - with date range', async () => {
   assertEquals(result.hourly[9], 1.0, 'Hour 9 in 2024 range should average 1.0');
 });
 
-Deno.test('getTotalCommands - returns correct total', async () => {
-  const result = await getTotalCommands({timezone: 'UTC'});
+Deno.test('getStats - returns correct total and lastCommandAt', async () => {
+  const result = await getStats({timezone: 'UTC'});
 
   // Should have total field
   assert('total' in result);
@@ -154,10 +154,21 @@ Deno.test('getTotalCommands - returns correct total', async () => {
 
   // Total should be 16: 8 from history + 8 from store
   assertEquals(result.total, 16, 'Total should be 16 commands');
+
+  // Should have lastCommandAt field
+  assert('lastCommandAt' in result);
+  assert(result.lastCommandAt);
+  assert(typeof result.lastCommandAt === 'string');
+
+  // Should be valid ISO 8601 format
+  assert(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(result.lastCommandAt));
+
+  // Based on fixtures, last command should be from 2026-01-02
+  assert(result.lastCommandAt.startsWith('2026-01-02'));
 });
 
-Deno.test('getTotalCommands - with date range', async () => {
-  const result = await getTotalCommands({
+Deno.test('getStats - with date range', async () => {
+  const result = await getStats({
     startDate: '2024-01-01',
     endDate: '2024-01-02',
     timezone: 'UTC',
@@ -165,6 +176,34 @@ Deno.test('getTotalCommands - with date range', async () => {
 
   // Should only count 2024 data: 5 + 3 = 8
   assertEquals(result.total, 8, 'Total for 2024-01-01 to 2024-01-02 should be 8');
+
+  // lastCommandAt should be from the 2024 range
+  assert(result.lastCommandAt);
+  assert(
+    result.lastCommandAt.startsWith('2024-01-02'),
+    'Last command should be from 2024-01-02'
+  );
+});
+
+Deno.test('getStats - lastCommandAt respects timezone', async () => {
+  // Get result in UTC
+  const resultUTC = await getStats({timezone: 'UTC'});
+
+  // Get result in Asia/Taipei (UTC+8)
+  const resultTaipei = await getStats({timezone: 'Asia/Taipei'});
+
+  // Both should have lastCommandAt
+  assert(resultUTC.lastCommandAt);
+  assert(resultTaipei.lastCommandAt);
+
+  // Parse the timestamps
+  const utcTime = new Date(resultUTC.lastCommandAt);
+  const taipeiTime = new Date(resultTaipei.lastCommandAt);
+
+  // The UTC timestamp should be 8 hours earlier than Taipei
+  // (because Taipei is stored as if it were UTC, it will appear 8 hours ahead)
+  const hourDiff = Math.abs(taipeiTime.getTime() - utcTime.getTime()) / (1000 * 60 * 60);
+  assertEquals(hourDiff, 8, 'Taipei time should be 8 hours ahead of UTC');
 });
 
 Deno.test({

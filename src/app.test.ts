@@ -14,9 +14,10 @@ const mockDb: DbFunctions = {
     Promise.resolve({
       hourly: Array(24).fill(5),
     }),
-  getTotalCommands: () =>
+  getStats: () =>
     Promise.resolve({
       total: 296378,
+      lastCommandAt: '2026-01-30T08:00:00.000Z',
     }),
 };
 
@@ -195,8 +196,8 @@ Deno.test('Time of day with timezone in Prefer header', async () => {
   assertEquals(data.hourly.length, 24);
 });
 
-Deno.test('Root endpoint returns total commands', async () => {
-  const req = new Request('http://localhost/');
+Deno.test('Root endpoint returns stats', async () => {
+  const req = new Request('http://localhost/?nocache=test');
   const res = await app.fetch(req);
 
   assertEquals(res.status, 200);
@@ -206,6 +207,11 @@ Deno.test('Root endpoint returns total commands', async () => {
   assertExists(data.total);
   assert(typeof data.total === 'number');
   assert(data.total >= 0);
+
+  // Check lastCommandAt field - should exist from mock
+  assertExists(data.lastCommandAt, 'lastCommandAt should be present in response');
+  // Should be valid ISO 8601 format
+  assert(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(data.lastCommandAt));
 });
 
 Deno.test('Root endpoint with date range', async () => {

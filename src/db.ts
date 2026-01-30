@@ -20,8 +20,9 @@ export interface Period {
   timezone: string;
 }
 
-export interface TotalCommands {
+export interface Stats {
   total: number;
+  lastCommandAt?: string;
 }
 
 /**
@@ -77,9 +78,9 @@ export async function getCommandsPerDay(opts: Period): Promise<DailyCommandCount
 }
 
 /**
- * Get the total count of all commands
+ * Get statistics including total command count and last command timestamp
  */
-export async function getTotalCommands(opts: Period): Promise<TotalCommands> {
+export async function getStats(opts: Period): Promise<Stats> {
   const {startDate, endDate, timezone} = opts;
   const client = await pool.connect();
   try {
@@ -98,7 +99,9 @@ export async function getTotalCommands(opts: Period): Promise<TotalCommands> {
         FROM store
         WHERE tag = 'history'
       )
-      SELECT COUNT(*) as total
+      SELECT
+        COUNT(*) as total,
+        MAX(ts) as last_command_at
       FROM combined
       WHERE 1=1
     `;
@@ -113,10 +116,14 @@ export async function getTotalCommands(opts: Period): Promise<TotalCommands> {
       query += ` AND date(ts) <= $${params.length}`;
     }
 
-    const result = await client.queryObject<{total: number}>(query, params);
+    const result = await client.queryObject<{
+      total: number;
+      last_command_at: Date | null;
+    }>(query, params);
 
     return {
       total: Number(result.rows[0].total),
+      lastCommandAt: result.rows[0].last_command_at?.toISOString(),
     };
   } finally {
     client.release();
