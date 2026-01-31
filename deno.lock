@@ -7,6 +7,7 @@
     "jsr:@std/dotenv@0.225": "0.225.6",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "npm:@evanpurkhiser/eslint-config@0.27": "0.27.0_eslint@9.39.2_prettier@3.8.1_eslint-config-prettier@9.1.2__eslint@9.39.2",
+    "npm:chroma-js@2.6.0": "2.6.0",
     "npm:eslint@9": "9.39.2",
     "npm:prettier@3": "3.8.1"
   },
@@ -379,6 +380,9 @@
         "ansi-styles",
         "supports-color"
       ]
+    },
+    "chroma-js@2.6.0": {
+      "integrity": "sha512-BLHvCB9s8Z1EV4ethr6xnkl/P2YRFOGqfgvuMG/MyCbZPrTA+NeiByY6XvgF0zP4/2deU2CXnWyMa3zu1LqQ3A=="
     },
     "color-convert@2.0.1": {
       "integrity": "sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==",

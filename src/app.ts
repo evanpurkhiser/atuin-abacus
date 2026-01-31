@@ -4,6 +4,7 @@ import {cors} from 'hono/cors';
 import {HTTPException} from 'hono/http-exception';
 
 import type {DailyCommandCount, Period, Stats, TimeOfDayStats} from './db.ts';
+import {generateContributionGraph} from './svg.ts';
 import {parsePeriod} from './utils.ts';
 
 /**
@@ -158,6 +159,49 @@ export function createApp(db: DbFunctions, cacheTtlSeconds = 300) {
     const period = getPeriodFromContext(c);
     const data = await db.getTimeOfDayStats(period);
     return c.json(data);
+  });
+
+  // SVG contribution graph
+  app.get('/graph.svg', cacheMiddleware, async c => {
+    const period = getPeriodFromContext(c);
+    const data = await db.getCommandsPerDay(period);
+
+    // Parse color parameters
+    const baseColor = c.req.query('color') || c.req.query('baseColor');
+    const textColor = c.req.query('textColor');
+    const cellBackground = c.req.query('cellBackground');
+
+    // Parse numeric parameters
+    const cellSize = c.req.query('cellSize')
+      ? parseInt(c.req.query('cellSize')!, 10)
+      : undefined;
+    const cellGap = c.req.query('cellGap')
+      ? parseInt(c.req.query('cellGap')!, 10)
+      : undefined;
+
+    // Parse boolean parameters (accept 'true', '1', 'false', '0')
+    const parseBoolean = (value: string | undefined): boolean | undefined => {
+      if (value === undefined) {
+        return undefined;
+      }
+      return value === 'true' || value === '1';
+    };
+
+    const showMonthLabels = parseBoolean(c.req.query('showMonthLabels'));
+    const showDayLabels = parseBoolean(c.req.query('showDayLabels'));
+
+    const svg = generateContributionGraph(data, {
+      baseColor,
+      textColor,
+      cellBackground,
+      cellSize,
+      cellGap,
+      showMonthLabels,
+      showDayLabels,
+    });
+
+    c.header('Content-Type', 'image/svg+xml');
+    return c.body(svg);
   });
 
   // Stats at root
