@@ -4,7 +4,9 @@
 
 📊 _Lightweight metrics API for [Atuin](https://atuin.sh) shell history_
 
-**Atuin Abacus** is a simple REST API that provides analytics and insights from your Atuin shell history database. Query your command usage patterns, visualize when you're most active in the terminal, and track your productivity over time.
+**Atuin Abacus** is a simple REST API that provides analytics and insights from your Atuin shell
+history database. Query your command usage patterns, visualize when you're most active in the
+terminal, and track your productivity over time.
 
 ## Features
 
@@ -127,7 +129,8 @@ deno task lint         # Lint code
 
 ## Deployment
 
-The application is automatically built and published as a Docker image to GitHub Container Registry on every push to main. Use it in production with:
+The application is automatically built and published as a Docker image to GitHub Container Registry
+on every push to main. Use it in production with:
 
 ```bash
 docker run -d \

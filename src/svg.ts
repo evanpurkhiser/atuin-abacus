@@ -24,6 +24,7 @@ export interface SvgOptions {
   cellGap?: number;
   showMonthLabels?: boolean;
   showDayLabels?: boolean;
+  showFooter?: boolean;
   baseColor?: string;
   textColor?: string;
   cellBackground?: string;
@@ -177,13 +178,14 @@ function calculateDimensions(
   cellSize: number,
   cellGap: number,
   showDayLabels: boolean,
-  showMonthLabels: boolean
+  showMonthLabels: boolean,
+  showFooter: boolean
 ): Dimensions {
   const maxX = Math.max(...cells.map(c => c.x));
   const leftMargin = showDayLabels ? 30 : 10;
   const topMargin = showMonthLabels ? 20 : 10;
   const rightMargin = 10;
-  const bottomMargin = 10;
+  const bottomMargin = showFooter ? 35 : 10;
 
   const graphWidth = maxX + cellSize + cellGap;
   const graphHeight = 7 * (cellSize + cellGap);
@@ -317,7 +319,7 @@ function renderMonthSeparators(
   const sortedMonths = Array.from(monthCells.keys()).sort();
   const paths: string[] = [];
   const cellBorderRadius = 2;
-  const radius = cellBorderRadius + (cellGap / 2);
+  const radius = cellBorderRadius + cellGap / 2;
 
   // Convert textColor to 75% opacity
   const strokeColor = textColor.startsWith('#')
@@ -398,11 +400,63 @@ function renderMonthSeparators(
       // Bottom should be at the end of the last row (row 6)
       const bottomY = topMargin + 6 * (cellSize + cellGap) + cellSize;
       path.push(`L ${currentX} ${bottomY}`);
-      paths.push(`<path d="${path.join(' ')}" fill="none" stroke="${strokeColor}" stroke-width="0.5" stroke-linecap="round"/>`);
+      paths.push(
+        `<path d="${path.join(
+          ' '
+        )}" fill="none" stroke="${strokeColor}" stroke-width="0.5" stroke-linecap="round"/>`
+      );
     }
   }
 
   return paths.join('\n');
+}
+
+/**
+ * Render footer with color legend and statistics
+ */
+function renderFooter(
+  data: DailyCommandCount[],
+  dims: Dimensions,
+  textColor: string,
+  getColor: (intensity: number) => string
+): string {
+  const footerY = dims.topMargin + dims.graphHeight + 18;
+  const legendSquareSize = 10;
+  const legendGap = 3;
+
+  // Calculate total commands and days
+  const totalCommands = data.reduce((sum, d) => sum + d.count, 0);
+  const totalDays = data.length;
+
+  let svg = '';
+
+  // Legend on the left
+  const legendX = dims.leftMargin;
+
+  // "Less" label
+  svg += `<text x="${legendX}" y="${footerY}" fill="${textColor}" font-size="11" font-family="monospace" dominant-baseline="middle">Less</text>`;
+
+  // Color squares - show intensity levels 0, 1, 3, 5, 6, 7, 8, 9
+  const intensities = [0, 1, 3, 5, 6, 7, 8, 9];
+  const squaresStartX = legendX + 35;
+
+  intensities.forEach((intensity, i) => {
+    const x = squaresStartX + i * (legendSquareSize + legendGap);
+    const y = footerY - legendSquareSize / 2;
+    const color = getColor(intensity);
+    svg += `<rect x="${x}" y="${y}" width="${legendSquareSize}" height="${legendSquareSize}" fill="${color}" rx="2"/>`;
+  });
+
+  // "More" label
+  const moreX = squaresStartX + intensities.length * (legendSquareSize + legendGap) + 5;
+  svg += `<text x="${moreX}" y="${footerY}" fill="${textColor}" font-size="11" font-family="monospace" dominant-baseline="middle">More</text>`;
+
+  // Statistics on the right
+  const statsText = `${totalCommands.toLocaleString()} commands over ${totalDays} days`;
+  const statsX = dims.width - 10;
+  svg += `<text x="${statsX}" y="${footerY}" fill="${textColor}" font-size="11" font-family="monospace" dominant-baseline="middle" text-anchor="end">${statsText}</text>`;
+
+  return svg;
 }
 
 /**
@@ -417,6 +471,7 @@ export function generateContributionGraph(
     cellGap = 3,
     showMonthLabels = true,
     showDayLabels = true,
+    showFooter = true,
     baseColor = '#fb7185',
     textColor = '#57606a',
     cellBackground = '#ebedf0',
@@ -447,7 +502,8 @@ export function generateContributionGraph(
     cellSize,
     cellGap,
     showDayLabels,
-    showMonthLabels
+    showMonthLabels,
+    showFooter
   );
 
   const getColor = createColorScale(baseColor, cellBackground);
@@ -463,7 +519,19 @@ export function generateContributionGraph(
   }
 
   svg += renderCells(cells, dims.leftMargin, dims.topMargin, cellSize, getColor);
-  svg += renderMonthSeparators(cells, dims.leftMargin, dims.topMargin, cellSize, cellGap, textColor);
+  svg += renderMonthSeparators(
+    cells,
+    dims.leftMargin,
+    dims.topMargin,
+    cellSize,
+    cellGap,
+    textColor
+  );
+
+  if (showFooter) {
+    svg += renderFooter(processedData, dims, textColor, getColor);
+  }
+
   svg += '</svg>';
 
   return svg;

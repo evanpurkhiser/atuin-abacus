@@ -217,6 +217,7 @@ Deno.test('generateContributionGraph with all options', () => {
     cellGap: 4,
     showMonthLabels: false,
     showDayLabels: false,
+    showFooter: false,
     baseColor: '#00ff00',
     textColor: '#ff00ff',
     cellBackground: '#0000ff',
@@ -229,6 +230,37 @@ Deno.test('generateContributionGraph with all options', () => {
   // Should have fewer text elements without labels
   const textCount = countElements(svg, 'text');
   assertEquals(textCount, 0);
+});
+
+Deno.test('generateContributionGraph footer is shown by default', () => {
+  const data: DailyCommandCount[] = [
+    {date: '2024-01-01', count: 10},
+    {date: '2024-01-02', count: 20},
+    {date: '2024-01-03', count: 30},
+  ];
+
+  const svg = generateContributionGraph(data);
+
+  // Should contain "Less" and "More" labels
+  assert(svg.includes('>Less<'));
+  assert(svg.includes('>More<'));
+
+  // Should contain statistics text with command count
+  assert(svg.includes('60 commands over 3 days'));
+});
+
+Deno.test('generateContributionGraph footer can be disabled', () => {
+  const data: DailyCommandCount[] = [
+    {date: '2024-01-01', count: 10},
+    {date: '2024-01-02', count: 20},
+  ];
+
+  const svg = generateContributionGraph(data, {showFooter: false});
+
+  // Should not contain footer elements
+  assert(!svg.includes('>Less<'));
+  assert(!svg.includes('>More<'));
+  assert(!svg.includes('commands over'));
 });
 
 Deno.test('generateContributionGraph produces no background rect', () => {
@@ -264,18 +296,21 @@ Deno.test('generateContributionGraph skips partial first month label', () => {
   assert(svg.includes('feb'));
 });
 
-Deno.test('generateContributionGraph shows first month label when starting early in month', () => {
-  // Start data on Jan 3 (early in month), which should show the Jan label
-  const data: DailyCommandCount[] = [
-    {date: '2024-01-03', count: 10},
-    {date: '2024-01-04', count: 20},
-    {date: '2024-02-01', count: 15},
-  ];
+Deno.test(
+  'generateContributionGraph shows first month label when starting early in month',
+  () => {
+    // Start data on Jan 3 (early in month), which should show the Jan label
+    const data: DailyCommandCount[] = [
+      {date: '2024-01-03', count: 10},
+      {date: '2024-01-04', count: 20},
+      {date: '2024-02-01', count: 15},
+    ];
 
-  const svg = generateContributionGraph(data, {showMonthLabels: true});
+    const svg = generateContributionGraph(data, {showMonthLabels: true});
 
-  // Should have 'jan' label since we start early in the month (day <= 7)
-  assert(svg.includes('jan'));
-  // Should also have 'feb' label
-  assert(svg.includes('feb'));
-});
+    // Should have 'jan' label since we start early in the month (day <= 7)
+    assert(svg.includes('jan'));
+    // Should also have 'feb' label
+    assert(svg.includes('feb'));
+  }
+);
