@@ -538,33 +538,40 @@ export function generateContributionGraph(
 }
 
 /**
- * Generate a color scale from a base color for different intensity levels
- * Base color is positioned at intensity 6, with highest intensities getting brighter
+ * Generate a perceptually uniform color scale with proper visual contrast
+ * Uses lightness correction for even perceptual steps
  */
 function createColorScale(
   baseColor: string,
   cellBackground: string
 ): (intensity: number) => string {
-  const darkStart = chroma.mix(cellBackground, baseColor, 0.15, 'lab');
-  const brightEnd = chroma(baseColor).brighten(1.5);
+  // Create a desaturated, lighter starting point (not quite the background)
+  const base = chroma(baseColor);
+  const lightStart = base.set('hsl.s', '*0.2').set('hsl.l', '*1.3');
 
-  // Create two separate scales for precise control
-  // Scale 1: dark → base color (7 colors: indices 0-6)
-  // Scale 2: base → bright (4 colors: indices 0-3)
-  const darkToBase = chroma.scale([darkStart, baseColor]).mode('lab').colors(7);
-  const baseToBright = chroma.scale([baseColor, brightEnd]).mode('lab').colors(4);
+  // Generate scale with lightness correction for even perceptual steps
+  // This ensures each step has similar visual impact
+  const colors = chroma.scale([lightStart, baseColor])
+    .mode('lab')
+    .correctLightness()
+    .colors(8); // 8 colors for intensities 0-7
+
+  // Create two brighter levels above the base
+  const bright1 = base.brighten(0.6).saturate(0.3);
+  const bright2 = base.brighten(1.2).saturate(0.5);
 
   return (intensity: number): string => {
     if (intensity === 0) {
       return cellBackground;
     }
 
-    if (intensity <= 6) {
-      // Intensity 1-6 → darkToBase indices 1-6
-      return darkToBase[intensity];
+    if (intensity <= 7) {
+      return colors[intensity];
+    } else if (intensity === 8) {
+      return bright1.hex();
     } else {
-      // Intensity 7-9 → baseToBright indices 1-3 (skip index 0 as it duplicates intensity 6)
-      return baseToBright[intensity - 6];
+      // intensity === 9
+      return bright2.hex();
     }
   };
 }
