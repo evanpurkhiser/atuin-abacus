@@ -8,6 +8,12 @@
 history database. Query your command usage patterns, visualize when you're most active in the
 terminal, and track your productivity over time.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://apis.evanpurkhiser.com/atuin-abacus/graph.svg?period=1y&cellBackground=%23161b22&textColor=%23c9d1d9">
+  <source media="(prefers-color-scheme: light)" srcset="https://apis.evanpurkhiser.com/atuin-abacus/graph.svg?period=1y">
+  <img alt="Command History Activity Graph" src="https://apis.evanpurkhiser.com/atuin-abacus/graph.svg?period=1y">
+</picture>
+
 ## Features
 
 - **Command History Analytics**: Track your shell command usage over time
