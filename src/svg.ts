@@ -288,7 +288,9 @@ function renderMonthSeparators(
   cellGap: number,
   textColor: string
 ): string {
-  if (cells.length === 0) return '';
+  if (cells.length === 0) {
+    return '';
+  }
 
   // Create a map of (x, y) -> cell for easy lookup
   const cellMap = new Map<string, Cell>();
@@ -303,7 +305,9 @@ function renderMonthSeparators(
     monthKeys.add(`${date.getFullYear()}-${date.getMonth()}`);
   });
 
-  if (monthKeys.size < 2) return '';
+  if (monthKeys.size < 2) {
+    return '';
+  }
 
   // Group cells by month
   const monthCells = new Map<string, Cell[]>();
@@ -345,7 +349,9 @@ function renderMonthSeparators(
       const prevInRow = prevMonthCells.filter(c => c.y === y);
       const currInRow = currMonthCells.filter(c => c.y === y);
 
-      if (prevInRow.length === 0 && currInRow.length === 0) continue;
+      if (prevInRow.length === 0 && currInRow.length === 0) {
+        continue;
+      }
 
       // Determine the X position for this row
       let targetX: number;
@@ -551,7 +557,8 @@ function createColorScale(
 
   // Generate scale with lightness correction for even perceptual steps
   // This ensures each step has similar visual impact
-  const colors = chroma.scale([lightStart, baseColor])
+  const colors = chroma
+    .scale([lightStart, baseColor])
     .mode('lab')
     .correctLightness()
     .colors(8); // 8 colors for intensities 0-7
@@ -567,11 +574,11 @@ function createColorScale(
 
     if (intensity <= 7) {
       return colors[intensity];
-    } else if (intensity === 8) {
-      return bright1.hex();
-    } else {
-      // intensity === 9
-      return bright2.hex();
     }
+    if (intensity === 8) {
+      return bright1.hex();
+    }
+    // intensity === 9
+    return bright2.hex();
   };
 }
