@@ -20,11 +20,32 @@ function countElements(svg: string, element: string): number {
   return matches ? matches.length : 0;
 }
 
-Deno.test('generateContributionGraph with empty data returns placeholder', () => {
+Deno.test('generateContributionGraph with empty data generates grid', () => {
   const svg = generateContributionGraph([]);
-  assert(svg.includes('No data'));
-  assertExists(svg.match(/width="200"/));
-  assertExists(svg.match(/height="100"/));
+
+  // Should generate a valid SVG with a grid (not just "No data" text)
+  assert(svg.startsWith('<svg'));
+  assert(svg.endsWith('</svg>'));
+
+  // Should have rect elements for the empty grid (approximately a year's worth)
+  const rectCount = countElements(svg, 'rect');
+  assert(rectCount >= 365); // At least 365 days
+});
+
+Deno.test('generateContributionGraph empty data respects options', () => {
+  const svg = generateContributionGraph([], {
+    textColor: '#ff00ff',
+    cellBackground: '#000000',
+    showMonthLabels: true,
+  });
+
+  // Should have a grid with custom colors
+  assert(svg.includes('#000000')); // cellBackground color for empty cells
+  assert(svg.includes('#ff00ff')); // textColor for labels
+
+  // Should have month labels
+  const hasMonthLabel = svg.includes('jan') || svg.includes('feb') || svg.includes('mar');
+  assert(hasMonthLabel);
 });
 
 Deno.test('generateContributionGraph generates valid SVG', () => {

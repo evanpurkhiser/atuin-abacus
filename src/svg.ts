@@ -284,12 +284,26 @@ export function generateContributionGraph(
     cellBackground = '#0d1117',
   } = options;
 
+  // If no data, generate a year's worth of empty cells
+  let processedData = data;
   if (data.length === 0) {
-    return generateEmptySvg();
+    const endDate = new Date();
+    const startDate = new Date(endDate);
+    startDate.setFullYear(startDate.getFullYear() - 1);
+
+    processedData = [];
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      processedData.push({
+        date: currentDate.toISOString().split('T')[0],
+        count: 0,
+      });
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
   }
 
-  const intensityMap = calculateIntensityMap(data);
-  const cells = generateCells(data, intensityMap, cellSize, cellGap);
+  const intensityMap = calculateIntensityMap(processedData);
+  const cells = generateCells(processedData, intensityMap, cellSize, cellGap);
   const dims = calculateDimensions(
     cells,
     cellSize,
@@ -338,13 +352,4 @@ function createColorScale(
     const index = Math.max(0, Math.min(9, intensity));
     return scale[index];
   };
-}
-
-/**
- * Generate an empty SVG placeholder
- */
-function generateEmptySvg(): string {
-  return `<svg width="200" height="100" xmlns="http://www.w3.org/2000/svg">
-    <text x="100" y="50" fill="#8b949e" font-size="12" font-family="monospace" text-anchor="middle">No data</text>
-  </svg>`;
 }
