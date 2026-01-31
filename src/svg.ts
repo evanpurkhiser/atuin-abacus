@@ -276,6 +276,136 @@ function renderCells(
 }
 
 /**
+ * Render month separator lines that weave through the grid
+ */
+function renderMonthSeparators(
+  cells: Cell[],
+  leftMargin: number,
+  topMargin: number,
+  cellSize: number,
+  cellGap: number,
+  textColor: string
+): string {
+  if (cells.length === 0) return '';
+
+  // Create a map of (x, y) -> cell for easy lookup
+  const cellMap = new Map<string, Cell>();
+  cells.forEach(cell => {
+    cellMap.set(`${cell.x},${cell.y}`, cell);
+  });
+
+  // Find unique month boundaries by checking which columns have month changes
+  const monthKeys = new Set<string>();
+  cells.forEach(cell => {
+    const date = new Date(cell.date);
+    monthKeys.add(`${date.getFullYear()}-${date.getMonth()}`);
+  });
+
+  if (monthKeys.size < 2) return '';
+
+  // Group cells by month
+  const monthCells = new Map<string, Cell[]>();
+  cells.forEach(cell => {
+    const date = new Date(cell.date);
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    if (!monthCells.has(key)) {
+      monthCells.set(key, []);
+    }
+    monthCells.get(key)!.push(cell);
+  });
+
+  const sortedMonths = Array.from(monthCells.keys()).sort();
+  const paths: string[] = [];
+  const cellBorderRadius = 2;
+  const radius = cellBorderRadius + (cellGap / 2);
+
+  // Convert textColor to 75% opacity
+  const strokeColor = textColor.startsWith('#')
+    ? `${textColor}C0` // Add C0 hex (75% opacity) to hex colors
+    : textColor.replace('rgb(', 'rgba(').replace(')', ', 0.75)');
+
+  // For each pair of consecutive months, draw a separator
+  for (let i = 0; i < sortedMonths.length - 1; i++) {
+    const prevMonthCells = monthCells.get(sortedMonths[i])!;
+    const currMonthCells = monthCells.get(sortedMonths[i + 1])!;
+
+    const path: string[] = [];
+    let currentX: number | null = null;
+
+    // Start from top of graph
+    const startY = topMargin;
+
+    // For each row (0-6), determine which column the boundary is in
+    for (let row = 0; row < 7; row++) {
+      const y = row * (cellSize + cellGap);
+
+      // Find cells in this row for both months
+      const prevInRow = prevMonthCells.filter(c => c.y === y);
+      const currInRow = currMonthCells.filter(c => c.y === y);
+
+      if (prevInRow.length === 0 && currInRow.length === 0) continue;
+
+      // Determine the X position for this row
+      let targetX: number;
+
+      if (prevInRow.length > 0 && currInRow.length > 0) {
+        // Both months have cells in this row
+        // Separator should be between the rightmost prev cell and leftmost curr cell
+        const maxPrevX = Math.max(...prevInRow.map(c => c.x));
+        const minCurrX = Math.min(...currInRow.map(c => c.x));
+
+        if (maxPrevX === minCurrX) {
+          // Same column - separator in the middle
+          targetX = leftMargin + maxPrevX + cellSize + cellGap / 2;
+        } else {
+          // Different columns - separator at the gap between columns
+          targetX = leftMargin + maxPrevX + cellSize + cellGap / 2;
+        }
+      } else if (prevInRow.length > 0) {
+        // Only prev month in this row
+        const maxPrevX = Math.max(...prevInRow.map(c => c.x));
+        targetX = leftMargin + maxPrevX + cellSize + cellGap / 2;
+      } else {
+        // Only curr month in this row
+        const minCurrX = Math.min(...currInRow.map(c => c.x));
+        targetX = leftMargin + minCurrX - cellGap / 2;
+      }
+
+      // Initialize or update path
+      if (currentX === null) {
+        // First point
+        path.push(`M ${targetX} ${startY}`);
+        currentX = targetX;
+      } else if (currentX !== targetX) {
+        // Need to step horizontally
+        const stepY = topMargin + y - cellGap / 2;
+
+        // Go down to step point
+        path.push(`L ${currentX} ${stepY - radius}`);
+
+        // Curve and step horizontally
+        const direction = targetX > currentX ? 1 : -1;
+        path.push(`Q ${currentX} ${stepY} ${currentX + direction * radius} ${stepY}`);
+        path.push(`L ${targetX - direction * radius} ${stepY}`);
+        path.push(`Q ${targetX} ${stepY} ${targetX} ${stepY + radius}`);
+
+        currentX = targetX;
+      }
+    }
+
+    // End at bottom of graph
+    if (currentX !== null) {
+      // Bottom should be at the end of the last row (row 6)
+      const bottomY = topMargin + 6 * (cellSize + cellGap) + cellSize;
+      path.push(`L ${currentX} ${bottomY}`);
+      paths.push(`<path d="${path.join(' ')}" fill="none" stroke="${strokeColor}" stroke-width="0.5" stroke-linecap="round"/>`);
+    }
+  }
+
+  return paths.join('\n');
+}
+
+/**
  * Generate a GitHub-style contribution graph SVG from daily command counts
  */
 export function generateContributionGraph(
@@ -333,6 +463,7 @@ export function generateContributionGraph(
   }
 
   svg += renderCells(cells, dims.leftMargin, dims.topMargin, cellSize, getColor);
+  svg += renderMonthSeparators(cells, dims.leftMargin, dims.topMargin, cellSize, cellGap, textColor);
   svg += '</svg>';
 
   return svg;
