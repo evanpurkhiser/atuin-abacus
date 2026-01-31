@@ -223,20 +223,28 @@ function renderDayLabels(
  */
 function renderMonthLabels(cells: Cell[], leftMargin: number, textColor: string): string {
   let currentMonth = -1;
-  const monthPositions: Array<{month: string; x: number}> = [];
+  const monthPositions: Array<{month: string; x: number; day: number}> = [];
 
   cells.forEach(cell => {
     const date = new Date(cell.date);
     const month = date.getMonth();
+    const day = date.getDate();
 
     if (month !== currentMonth) {
       currentMonth = month;
       monthPositions.push({
         month: MONTHS[month],
         x: leftMargin + cell.x,
+        day,
       });
     }
   });
+
+  // Skip the first month label if it doesn't start near the beginning of the month
+  // This prevents overlapping labels when the graph starts mid-month
+  if (monthPositions.length > 0 && monthPositions[0].day > 7) {
+    monthPositions.shift();
+  }
 
   return monthPositions
     .map(
@@ -280,8 +288,8 @@ export function generateContributionGraph(
     showMonthLabels = true,
     showDayLabels = true,
     baseColor = '#fb7185',
-    textColor = '#8b949e',
-    cellBackground = '#0d1117',
+    textColor = '#57606a',
+    cellBackground = '#ebedf0',
   } = options;
 
   // If no data, generate a year's worth of empty cells
@@ -332,24 +340,32 @@ export function generateContributionGraph(
 
 /**
  * Generate a color scale from a base color for different intensity levels
+ * Base color is positioned at intensity 6, with highest intensities getting brighter
  */
 function createColorScale(
   baseColor: string,
   cellBackground: string
 ): (intensity: number) => string {
-  // Create a scale from very dark (almost background) to bright (base color)
-  // Use the cell background color mixed with base color for low intensities
   const darkStart = chroma.mix(cellBackground, baseColor, 0.15, 'lab');
+  const brightEnd = chroma(baseColor).brighten(1.5);
 
-  // Create a smooth scale with 10 steps (0-9)
-  const scale = chroma.scale([darkStart, baseColor]).mode('lab').colors(10);
+  // Create two separate scales for precise control
+  // Scale 1: dark → base color (7 colors: indices 0-6)
+  // Scale 2: base → bright (4 colors: indices 0-3)
+  const darkToBase = chroma.scale([darkStart, baseColor]).mode('lab').colors(7);
+  const baseToBright = chroma.scale([baseColor, brightEnd]).mode('lab').colors(4);
 
   return (intensity: number): string => {
     if (intensity === 0) {
       return cellBackground;
     }
-    // Map intensity 1-9 to scale indices 1-9
-    const index = Math.max(0, Math.min(9, intensity));
-    return scale[index];
+
+    if (intensity <= 6) {
+      // Intensity 1-6 → darkToBase indices 1-6
+      return darkToBase[intensity];
+    } else {
+      // Intensity 7-9 → baseToBright indices 1-3 (skip index 0 as it duplicates intensity 6)
+      return baseToBright[intensity - 6];
+    }
   };
 }

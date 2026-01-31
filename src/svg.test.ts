@@ -246,3 +246,36 @@ Deno.test('generateContributionGraph produces no background rect', () => {
   // All rects should be cell rects
   assertEquals(allRects.length, cellRects.length);
 });
+
+Deno.test('generateContributionGraph skips partial first month label', () => {
+  // Start data on Jan 15 (mid-month), which should skip the Jan label
+  const data: DailyCommandCount[] = [
+    {date: '2024-01-15', count: 10},
+    {date: '2024-01-16', count: 20},
+    {date: '2024-02-01', count: 15},
+    {date: '2024-02-02', count: 25},
+  ];
+
+  const svg = generateContributionGraph(data, {showMonthLabels: true});
+
+  // Should NOT have 'jan' label since we start mid-month
+  assert(!svg.includes('jan'));
+  // Should have 'feb' label since that month change is included
+  assert(svg.includes('feb'));
+});
+
+Deno.test('generateContributionGraph shows first month label when starting early in month', () => {
+  // Start data on Jan 3 (early in month), which should show the Jan label
+  const data: DailyCommandCount[] = [
+    {date: '2024-01-03', count: 10},
+    {date: '2024-01-04', count: 20},
+    {date: '2024-02-01', count: 15},
+  ];
+
+  const svg = generateContributionGraph(data, {showMonthLabels: true});
+
+  // Should have 'jan' label since we start early in the month (day <= 7)
+  assert(svg.includes('jan'));
+  // Should also have 'feb' label
+  assert(svg.includes('feb'));
+});
