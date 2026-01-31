@@ -201,11 +201,18 @@ Deno.test('getStats - lastCommandAt respects timezone', async () => {
   const taipeiTime = new Date(resultTaipei.lastCommandAt);
 
   // Both should represent the same instant in time (difference should be 0)
-  assertEquals(utcTime.getTime(), taipeiTime.getTime(), 'Both timestamps should represent the same moment');
+  assertEquals(
+    utcTime.getTime(),
+    taipeiTime.getTime(),
+    'Both timestamps should represent the same moment'
+  );
 
   // But the string representations should have different timezone offsets
   assert(resultUTC.lastCommandAt.includes('+00:00'), 'UTC should have +00:00 offset');
-  assert(resultTaipei.lastCommandAt.includes('+08:00'), 'Taipei should have +08:00 offset');
+  assert(
+    resultTaipei.lastCommandAt.includes('+08:00'),
+    'Taipei should have +08:00 offset'
+  );
 });
 
 Deno.test({

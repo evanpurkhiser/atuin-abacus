@@ -237,3 +237,61 @@ Deno.test('Root endpoint with invalid date format', async () => {
   assertExists(data.error);
   assert(data.error.includes('Invalid start date format'));
 });
+
+// Period parameter integration tests
+Deno.test('History endpoint with period parameter', async () => {
+  const req = new Request('http://localhost/history?period=30d');
+  const res = await app.fetch(req);
+
+  assertEquals(res.status, 200);
+
+  const data = await res.json();
+  assert(Array.isArray(data));
+});
+
+Deno.test('History endpoint with invalid period parameter', async () => {
+  const req = new Request('http://localhost/history?period=invalid');
+  const res = await app.fetch(req);
+
+  assertEquals(res.status, 400);
+
+  const data = await res.json();
+  assertExists(data.error);
+  assert(data.error.includes('Invalid period format'));
+});
+
+Deno.test(
+  'History endpoint period parameter takes precedence over start/end',
+  async () => {
+    const req = new Request(
+      'http://localhost/history?period=1y&start=2024-01-01&end=2024-12-31'
+    );
+    const res = await app.fetch(req);
+
+    assertEquals(res.status, 200);
+
+    const data = await res.json();
+    assert(Array.isArray(data));
+  }
+);
+
+Deno.test('Time of day endpoint with period parameter', async () => {
+  const req = new Request('http://localhost/time-of-day?period=7d');
+  const res = await app.fetch(req);
+
+  assertEquals(res.status, 200);
+
+  const data = await res.json();
+  assertEquals(data.hourly.length, 24);
+});
+
+Deno.test('Root endpoint with period parameter', async () => {
+  const req = new Request('http://localhost/?period=1m');
+  const res = await app.fetch(req);
+
+  assertEquals(res.status, 200);
+
+  const data = await res.json();
+  assertExists(data.total);
+  assert(typeof data.total === 'number');
+});

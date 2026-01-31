@@ -4,6 +4,7 @@ import {cors} from 'hono/cors';
 import {HTTPException} from 'hono/http-exception';
 
 import type {DailyCommandCount, Period, Stats, TimeOfDayStats} from './db.ts';
+import {parsePeriod} from './utils.ts';
 
 /**
  * Get the system's default timezone using Temporal API
@@ -84,11 +85,27 @@ export function createApp(db: DbFunctions, cacheTtlSeconds = 300) {
   /**
    * Helper to extract Period parameters from context
    * Throws HTTPException if validation fails
+   * Supports either start/end dates OR a period parameter (e.g., "1y", "6m", "30d")
+   * If period is provided, it takes precedence over start/end
    */
   const getPeriodFromContext = (c: Context<{Variables: Variables}>): Period => {
+    const timezone = c.get('timezone');
+    const periodParam = c.req.query('period');
+
+    // If period parameter is provided, parse it
+    if (periodParam) {
+      const parsed = parsePeriod(periodParam, timezone);
+      if (!parsed) {
+        throw new HTTPException(400, {
+          message: `Invalid period format. Expected format: <number><unit> (e.g., "1y", "6m", "30d"), got: ${periodParam}`,
+        });
+      }
+      return {startDate: parsed.startDate, endDate: parsed.endDate, timezone};
+    }
+
+    // Otherwise use start/end date parameters
     const startDate = c.req.query('start') || undefined;
     const endDate = c.req.query('end') || undefined;
-    const timezone = c.get('timezone');
 
     const validationError = validateDateParams(startDate, endDate);
     if (validationError) {
