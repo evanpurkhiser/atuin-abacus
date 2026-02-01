@@ -544,41 +544,110 @@ export function generateContributionGraph(
 }
 
 /**
- * Generate a perceptually uniform color scale with proper visual contrast
- * Uses lightness correction for even perceptual steps
+ * Generate a perceptually uniform color scale optimized for both dark and light colors
+ * Uses Oklch color space with background blending for smooth transitions
  */
 function createColorScale(
   baseColor: string,
   cellBackground: string
 ): (intensity: number) => string {
-  // Create a desaturated, lighter starting point (not quite the background)
   const base = chroma(baseColor);
-  const lightStart = base.set('hsl.s', '*0.2').set('hsl.l', '*1.3');
+  const background = chroma(cellBackground);
 
-  // Generate scale with lightness correction for even perceptual steps
-  // This ensures each step has similar visual impact
-  const colors = chroma
-    .scale([lightStart, baseColor])
-    .mode('lab')
-    .correctLightness()
-    .colors(8); // 8 colors for intensities 0-7
+  // Get Oklch components for perceptually uniform manipulation
+  const baseL = base.get('oklch.l');
+  const baseC = base.get('oklch.c');
+  const baseH = base.get('oklch.h');
+  const bgL = background.get('oklch.l');
 
-  // Create two brighter levels above the base
-  const bright1 = base.brighten(0.6).saturate(0.3);
-  const bright2 = base.brighten(1.2).saturate(0.5);
+  // Determine if we're in dark mode (dark background) or light mode
+  const isDarkMode = bgL < 0.5;
+
+  // For low intensities (1-2), blend with background for smooth transition
+  // Create blends by adjusting lightness/chroma while preserving the base hue
+  const blend1 = chroma.oklch(
+    isDarkMode ? bgL + (baseL - bgL) * 0.15 : bgL + (baseL - bgL) * 0.2,
+    baseC * (isDarkMode ? 0.15 : 0.2),
+    baseH
+  );
+  const blend2 = chroma.oklch(
+    isDarkMode ? bgL + (baseL - bgL) * 0.35 : bgL + (baseL - bgL) * 0.4,
+    baseC * (isDarkMode ? 0.35 : 0.4),
+    baseH
+  );
+
+  // For medium-low intensities (3-4), use darker/lighter versions of base
+  let mid1, mid2;
+  if (isDarkMode) {
+    // Dark mode: gradually lighten from very dark
+    mid1 = chroma.oklch(Math.max(baseL * 0.6, 0.25), baseC * 0.7, baseH);
+    mid2 = chroma.oklch(Math.max(baseL * 0.8, 0.35), baseC * 0.85, baseH);
+  } else {
+    // Light mode: gradually darken from light
+    mid1 = chroma.oklch(Math.min(baseL * 1.5, 0.85), baseC * 0.5, baseH);
+    mid2 = chroma.oklch(Math.min(baseL * 1.3, 0.78), baseC * 0.7, baseH);
+  }
+
+  // Generate main scale for intensities 5-7 (approaching base color)
+  const mainScale = chroma.scale([mid2, base]).mode('oklch').colors(3); // intensities 5, 6, 7
+
+  // Create enhanced versions beyond the base color (intensities 8-9)
+  let intense1, intense2;
+
+  if (isDarkMode) {
+    // Dark mode: significantly brighten for highest intensities
+    intense1 = chroma.oklch(
+      Math.min(baseL + 0.15, 0.7),
+      Math.min(baseC * 1.15, 0.37),
+      baseH
+    );
+    intense2 = chroma.oklch(
+      Math.min(baseL + 0.25, 0.8),
+      Math.min(baseC * 1.25, 0.37),
+      baseH
+    );
+  } else {
+    // Light mode: boost saturation and adjust lightness
+    const lightnessBoost = baseL > 0.75 ? -0.08 : 0.08;
+    intense1 = chroma.oklch(
+      Math.max(0.4, Math.min(baseL + lightnessBoost, 0.75)),
+      Math.min(baseC * 1.25, 0.37),
+      baseH
+    );
+    intense2 = chroma.oklch(
+      Math.max(0.45, Math.min(baseL + lightnessBoost * 1.5, 0.8)),
+      Math.min(baseC * 1.4, 0.37),
+      baseH
+    );
+  }
 
   return (intensity: number): string => {
     if (intensity === 0) {
       return cellBackground;
     }
 
-    if (intensity <= 7) {
-      return colors[intensity];
+    // Smooth progression with background blending for low intensities
+    switch (intensity) {
+      case 1:
+        return blend1.hex();
+      case 2:
+        return blend2.hex();
+      case 3:
+        return mid1.hex();
+      case 4:
+        return mid2.hex();
+      case 5:
+        return mainScale[0];
+      case 6:
+        return mainScale[1];
+      case 7:
+        return mainScale[2];
+      case 8:
+        return intense1.hex();
+      case 9:
+        return intense2.hex();
+      default:
+        return cellBackground;
     }
-    if (intensity === 8) {
-      return bright1.hex();
-    }
-    // intensity === 9
-    return bright2.hex();
   };
 }
