@@ -432,7 +432,12 @@ function renderFooter(
 
   // Calculate total commands and days
   const totalCommands = data.reduce((sum, d) => sum + d.count, 0);
-  const totalDays = data.length;
+
+  // Calculate total days by finding the span from first to last date
+  const firstDate = new Date(data[0].date);
+  const lastDate = new Date(data[data.length - 1].date);
+  const totalDays =
+    Math.floor((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
   let svg = '';
 

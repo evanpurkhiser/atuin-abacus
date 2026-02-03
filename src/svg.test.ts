@@ -314,3 +314,35 @@ Deno.test(
     assert(svg.includes('feb'));
   }
 );
+
+Deno.test(
+  'generateContributionGraph footer counts all days in range, not just days with data',
+  () => {
+    // Data with gaps - only some days have commands
+    const data: DailyCommandCount[] = [
+      {date: '2024-01-01', count: 10},
+      {date: '2024-01-05', count: 20}, // Gap of 3 days
+      {date: '2024-01-10', count: 30}, // Gap of 4 days
+    ];
+
+    const svg = generateContributionGraph(data);
+
+    // Should count all days from Jan 1 to Jan 10 (10 days total), not just 3 days with data
+    assert(svg.includes('60 commands over 10 days'));
+    assert(!svg.includes('60 commands over 3 days')); // Should NOT count only data points
+  }
+);
+
+Deno.test('generateContributionGraph footer counts all days for consecutive data', () => {
+  // Consecutive days
+  const data: DailyCommandCount[] = [
+    {date: '2024-01-01', count: 10},
+    {date: '2024-01-02', count: 20},
+    {date: '2024-01-03', count: 30},
+  ];
+
+  const svg = generateContributionGraph(data);
+
+  // Should count all days from Jan 1 to Jan 3 (3 days)
+  assert(svg.includes('60 commands over 3 days'));
+});
