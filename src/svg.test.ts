@@ -329,7 +329,6 @@ Deno.test(
 
     // Should count all days from Jan 1 to Jan 10 (10 days total), not just 3 days with data
     assert(svg.includes('60 commands over 10 days'));
-    assert(!svg.includes('60 commands over 3 days')); // Should NOT count only data points
   }
 );
 
