@@ -191,7 +191,7 @@ export async function getTimeOfDayStats(opts: Period): Promise<TimeOfDayStats> {
 
     const result = await client.queryObject<{hour: number; avg_count: number}>(
       query,
-      params
+      params,
     );
 
     // Initialize array with 0s for all 24 hours

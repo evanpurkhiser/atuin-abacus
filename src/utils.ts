@@ -4,7 +4,7 @@
  */
 export function parsePeriod(
   periodStr: string,
-  timezone: string
+  timezone: string,
 ): {startDate: string; endDate: string} | null {
   const match = periodStr.match(/^(\d+)([ymd])$/i);
   if (!match) {

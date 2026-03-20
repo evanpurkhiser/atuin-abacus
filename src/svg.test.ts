@@ -296,41 +296,35 @@ Deno.test('generateContributionGraph skips partial first month label', () => {
   assert(svg.includes('feb'));
 });
 
-Deno.test(
-  'generateContributionGraph shows first month label when starting early in month',
-  () => {
-    // Start data on Jan 3 (early in month), which should show the Jan label
-    const data: DailyCommandCount[] = [
-      {date: '2024-01-03', count: 10},
-      {date: '2024-01-04', count: 20},
-      {date: '2024-02-01', count: 15},
-    ];
+Deno.test('generateContributionGraph shows first month label when starting early in month', () => {
+  // Start data on Jan 3 (early in month), which should show the Jan label
+  const data: DailyCommandCount[] = [
+    {date: '2024-01-03', count: 10},
+    {date: '2024-01-04', count: 20},
+    {date: '2024-02-01', count: 15},
+  ];
 
-    const svg = generateContributionGraph(data, {showMonthLabels: true});
+  const svg = generateContributionGraph(data, {showMonthLabels: true});
 
-    // Should have 'jan' label since we start early in the month (day <= 7)
-    assert(svg.includes('jan'));
-    // Should also have 'feb' label
-    assert(svg.includes('feb'));
-  }
-);
+  // Should have 'jan' label since we start early in the month (day <= 7)
+  assert(svg.includes('jan'));
+  // Should also have 'feb' label
+  assert(svg.includes('feb'));
+});
 
-Deno.test(
-  'generateContributionGraph footer counts all days in range, not just days with data',
-  () => {
-    // Data with gaps - only some days have commands
-    const data: DailyCommandCount[] = [
-      {date: '2024-01-01', count: 10},
-      {date: '2024-01-05', count: 20}, // Gap of 3 days
-      {date: '2024-01-10', count: 30}, // Gap of 4 days
-    ];
+Deno.test('generateContributionGraph footer counts all days in range, not just days with data', () => {
+  // Data with gaps - only some days have commands
+  const data: DailyCommandCount[] = [
+    {date: '2024-01-01', count: 10},
+    {date: '2024-01-05', count: 20}, // Gap of 3 days
+    {date: '2024-01-10', count: 30}, // Gap of 4 days
+  ];
 
-    const svg = generateContributionGraph(data);
+  const svg = generateContributionGraph(data);
 
-    // Should count all days from Jan 1 to Jan 10 (10 days total), not just 3 days with data
-    assert(svg.includes('60 commands over 10 days'));
-  }
-);
+  // Should count all days from Jan 1 to Jan 10 (10 days total), not just 3 days with data
+  assert(svg.includes('60 commands over 10 days'));
+});
 
 Deno.test('generateContributionGraph footer counts all days for consecutive data', () => {
   // Consecutive days

@@ -73,7 +73,7 @@ Deno.test('getCommandsPerDay - results are sorted by date', async () => {
   for (let i = 1; i < result.length; i++) {
     assert(
       result[i].date >= result[i - 1].date,
-      `Dates not sorted: ${result[i - 1].date} > ${result[i].date}`
+      `Dates not sorted: ${result[i - 1].date} > ${result[i].date}`,
     );
   }
 });
@@ -181,7 +181,7 @@ Deno.test('getStats - with date range', async () => {
   assert(result.lastCommandAt);
   assert(
     result.lastCommandAt.startsWith('2024-01-02'),
-    'Last command should be from 2024-01-02'
+    'Last command should be from 2024-01-02',
   );
 });
 
@@ -204,14 +204,14 @@ Deno.test('getStats - lastCommandAt respects timezone', async () => {
   assertEquals(
     utcTime.getTime(),
     taipeiTime.getTime(),
-    'Both timestamps should represent the same moment'
+    'Both timestamps should represent the same moment',
   );
 
   // But the string representations should have different timezone offsets
   assert(resultUTC.lastCommandAt.includes('+00:00'), 'UTC should have +00:00 offset');
   assert(
     resultTaipei.lastCommandAt.includes('+08:00'),
-    'Taipei should have +08:00 offset'
+    'Taipei should have +08:00 offset',
   );
 });
 
@@ -241,7 +241,7 @@ Deno.test({
     assertEquals(
       resultLA.hourly[9],
       0,
-      'Hour 9 in LA should be 0 (original UTC 09:00 is now hour 1)'
+      'Hour 9 in LA should be 0 (original UTC 09:00 is now hour 1)',
     );
   },
 });

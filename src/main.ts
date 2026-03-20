@@ -5,7 +5,7 @@ import {closePool, getCommandsPerDay, getStats, getTimeOfDayStats} from './db.ts
 const config = getConfig();
 const app = createApp(
   {getCommandsPerDay, getTimeOfDayStats, getStats},
-  config.cacheTtlSeconds
+  config.cacheTtlSeconds,
 );
 
 // Start the server

@@ -7,8 +7,8 @@
     "test:watch": "./scripts/test.sh --watch",
     "lint": "deno run -A npm:eslint@^9 .",
     "lint:fix": "deno run -A npm:eslint@^9 . --fix",
-    "format": "deno run -A npm:prettier@^3 --write .",
-    "format:check": "deno run -A npm:prettier@^3 --check ."
+    "format": "deno run -A npm:oxfmt@^0.41.0 --write .",
+    "format:check": "deno run -A npm:oxfmt@^0.41.0 --check ."
   },
   "imports": {
     "@evanpurkhiser/eslint-config": "npm:@evanpurkhiser/eslint-config@^0.27.0",

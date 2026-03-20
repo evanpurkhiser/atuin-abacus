@@ -260,20 +260,17 @@ Deno.test('History endpoint with invalid period parameter', async () => {
   assert(data.error.includes('Invalid period format'));
 });
 
-Deno.test(
-  'History endpoint period parameter takes precedence over start/end',
-  async () => {
-    const req = new Request(
-      'http://localhost/history?period=1y&start=2024-01-01&end=2024-12-31'
-    );
-    const res = await app.fetch(req);
+Deno.test('History endpoint period parameter takes precedence over start/end', async () => {
+  const req = new Request(
+    'http://localhost/history?period=1y&start=2024-01-01&end=2024-12-31',
+  );
+  const res = await app.fetch(req);
 
-    assertEquals(res.status, 200);
+  assertEquals(res.status, 200);
 
-    const data = await res.json();
-    assert(Array.isArray(data));
-  }
-);
+  const data = await res.json();
+  assert(Array.isArray(data));
+});
 
 Deno.test('Time of day endpoint with period parameter', async () => {
   const req = new Request('http://localhost/time-of-day?period=7d');

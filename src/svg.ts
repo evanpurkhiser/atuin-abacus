@@ -127,7 +127,7 @@ function generateCells(
   data: DailyCommandCount[],
   intensityMap: Map<string, number>,
   cellSize: number,
-  cellGap: number
+  cellGap: number,
 ): Cell[] {
   // Start from the first Sunday on or before the first data point
   const firstDate = new Date(data[0].date);
@@ -179,7 +179,7 @@ function calculateDimensions(
   cellGap: number,
   showDayLabels: boolean,
   showMonthLabels: boolean,
-  showFooter: boolean
+  showFooter: boolean,
 ): Dimensions {
   const maxX = Math.max(...cells.map(c => c.x));
   const leftMargin = showDayLabels ? 30 : 10;
@@ -207,7 +207,7 @@ function renderDayLabels(
   dims: Dimensions,
   cellSize: number,
   cellGap: number,
-  textColor: string
+  textColor: string,
 ): string {
   let svg = '';
 
@@ -251,7 +251,7 @@ function renderMonthLabels(cells: Cell[], leftMargin: number, textColor: string)
   return monthPositions
     .map(
       pos =>
-        `<text x="${pos.x}" y="12" fill="${textColor}" font-size="10" font-family="monospace">${pos.month}</text>`
+        `<text x="${pos.x}" y="12" fill="${textColor}" font-size="10" font-family="monospace">${pos.month}</text>`,
     )
     .join('');
 }
@@ -264,7 +264,7 @@ function renderCells(
   leftMargin: number,
   topMargin: number,
   cellSize: number,
-  getColor: (intensity: number) => string
+  getColor: (intensity: number) => string,
 ): string {
   return cells
     .map(cell => {
@@ -286,7 +286,7 @@ function renderMonthSeparators(
   topMargin: number,
   cellSize: number,
   cellGap: number,
-  textColor: string
+  textColor: string,
 ): string {
   if (cells.length === 0) {
     return '';
@@ -408,8 +408,8 @@ function renderMonthSeparators(
       path.push(`L ${currentX} ${bottomY}`);
       paths.push(
         `<path d="${path.join(
-          ' '
-        )}" fill="none" stroke="${strokeColor}" stroke-width="0.5" stroke-linecap="round"/>`
+          ' ',
+        )}" fill="none" stroke="${strokeColor}" stroke-width="0.5" stroke-linecap="round"/>`,
       );
     }
   }
@@ -424,7 +424,7 @@ function renderFooter(
   data: DailyCommandCount[],
   dims: Dimensions,
   textColor: string,
-  getColor: (intensity: number) => string
+  getColor: (intensity: number) => string,
 ): string {
   const footerY = dims.topMargin + dims.graphHeight + 18;
   const legendSquareSize = 10;
@@ -475,7 +475,7 @@ function renderFooter(
  */
 export function generateContributionGraph(
   data: DailyCommandCount[],
-  options: SvgOptions = {}
+  options: SvgOptions = {},
 ): string {
   const {
     cellSize = 12,
@@ -514,7 +514,7 @@ export function generateContributionGraph(
     cellGap,
     showDayLabels,
     showMonthLabels,
-    showFooter
+    showFooter,
   );
 
   const getColor = createColorScale(baseColor, cellBackground);
@@ -536,7 +536,7 @@ export function generateContributionGraph(
     dims.topMargin,
     cellSize,
     cellGap,
-    textColor
+    textColor,
   );
 
   if (showFooter) {
@@ -554,7 +554,7 @@ export function generateContributionGraph(
  */
 function createColorScale(
   baseColor: string,
-  cellBackground: string
+  cellBackground: string,
 ): (intensity: number) => string {
   const base = chroma(baseColor);
   const background = chroma(cellBackground);
@@ -573,12 +573,12 @@ function createColorScale(
   const blend1 = chroma.oklch(
     isDarkMode ? bgL + (baseL - bgL) * 0.15 : bgL + (baseL - bgL) * 0.2,
     baseC * (isDarkMode ? 0.15 : 0.2),
-    baseH
+    baseH,
   );
   const blend2 = chroma.oklch(
     isDarkMode ? bgL + (baseL - bgL) * 0.35 : bgL + (baseL - bgL) * 0.4,
     baseC * (isDarkMode ? 0.35 : 0.4),
-    baseH
+    baseH,
   );
 
   // For medium-low intensities (3-4), use darker/lighter versions of base
@@ -604,12 +604,12 @@ function createColorScale(
     intense1 = chroma.oklch(
       Math.min(baseL + 0.15, 0.7),
       Math.min(baseC * 1.15, 0.37),
-      baseH
+      baseH,
     );
     intense2 = chroma.oklch(
       Math.min(baseL + 0.25, 0.8),
       Math.min(baseC * 1.25, 0.37),
-      baseH
+      baseH,
     );
   } else {
     // Light mode: boost saturation and adjust lightness
@@ -617,12 +617,12 @@ function createColorScale(
     intense1 = chroma.oklch(
       Math.max(0.4, Math.min(baseL + lightnessBoost, 0.75)),
       Math.min(baseC * 1.25, 0.37),
-      baseH
+      baseH,
     );
     intense2 = chroma.oklch(
       Math.max(0.45, Math.min(baseL + lightnessBoost * 1.5, 0.8)),
       Math.min(baseC * 1.4, 0.37),
-      baseH
+      baseH,
     );
   }
 

@@ -1,4 +1,4 @@
 .env
 .env.*
 eslint.config.mjs
-prettier.config.mjs
+.oxfmtrc.jsonc
