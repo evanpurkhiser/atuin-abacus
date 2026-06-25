@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/deno';
 import {type Context, Hono} from 'hono';
 import {cache} from 'hono/cache';
 import {cors} from 'hono/cors';
@@ -219,6 +220,8 @@ export function createApp(db: DbFunctions, cacheTtlSeconds = 300) {
     if (error instanceof HTTPException) {
       return c.json({error: error.message}, error.status);
     }
+
+    Sentry.captureException(error);
     console.error('Error handling request:', error);
     return c.json({error: 'Internal server error', message: error.message}, 500);
   });

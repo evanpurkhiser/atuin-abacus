@@ -1,3 +1,5 @@
+import './instrument.ts';
+
 import {createApp} from './app.ts';
 import {getConfig} from './config.ts';
 import {closePool, getCommandsPerDay, getStats, getTimeOfDayStats} from './db.ts';
