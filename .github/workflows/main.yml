@@ -25,22 +25,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
+      - uses: jdx/mise-action@v4
+
+      - run: deno install --frozen
+
+      - run: prek run --all-files
 
       - name: Run tests
         run: deno task test
         env:
           DATABASE_URL: postgresql://atuin_test:atuin_test@localhost:5432/atuin_test
           TZ: UTC
-
-      - name: Run linter
-        run: deno task lint
-
-      - name: Check formatting
-        run: deno task format:check
 
   deploy:
     name: Deploy
