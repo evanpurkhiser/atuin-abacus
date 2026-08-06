@@ -66,6 +66,20 @@ Deno.test('getCommandsPerDay - with date range filters correctly', async () => {
   assert(!has2026Data, 'Should not include 2026 data when filtering to 2024');
 });
 
+Deno.test('getCommandsPerDay - supports configurable sub-day rollups', async () => {
+  const result = await getCommandsPerDay({
+    startDate: '2024-01-01',
+    endDate: '2024-01-01',
+    timezone: 'UTC',
+    rollupSeconds: 6 * 60 * 60,
+  });
+
+  assertEquals(result, [
+    {date: '2024-01-01T06:00:00+00:00', count: 3},
+    {date: '2024-01-01T12:00:00+00:00', count: 2},
+  ]);
+});
+
 Deno.test('getCommandsPerDay - results are sorted by date', async () => {
   const result = await getCommandsPerDay({timezone: 'UTC'});
 

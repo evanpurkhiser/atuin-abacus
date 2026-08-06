@@ -20,6 +20,10 @@ export interface Period {
   timezone: string;
 }
 
+export interface HistoryPeriod extends Period {
+  rollupSeconds?: number;
+}
+
 export interface Stats {
   total: number;
   lastCommandAt?: string;
@@ -52,21 +56,28 @@ const COMBINED_CTE = `
 `;
 
 /**
- * Get the count of commands run per day within a date range
+ * Get the count of commands run per time bucket within a date range
  */
-export async function getCommandsPerDay(opts: Period): Promise<DailyCommandCount[]> {
-  const {startDate, endDate, timezone} = opts;
+export async function getCommandsPerDay(
+  opts: HistoryPeriod,
+): Promise<DailyCommandCount[]> {
+  const {startDate, endDate, timezone, rollupSeconds = 24 * 60 * 60} = opts;
+  const bucketExpression = `date_bin(
+    make_interval(secs => $2),
+    ts_tz,
+    TIMESTAMP '1970-01-05 00:00:00'
+  )`;
   const client = await pool.connect();
   try {
     let query = `
       ${COMBINED_CTE}
       SELECT
-        date(ts_tz) as date,
+        ${bucketExpression} as date,
         COUNT(*) as count
       FROM combined
       WHERE 1=1
     `;
-    const params: string[] = [timezone];
+    const params: Array<string | number> = [timezone, rollupSeconds];
 
     if (startDate) {
       params.push(startDate);
@@ -77,17 +88,29 @@ export async function getCommandsPerDay(opts: Period): Promise<DailyCommandCount
       query += ` AND date(ts_tz) <= $${params.length}`;
     }
 
-    query += ` GROUP BY date(ts_tz) ORDER BY date`;
+    query += ` GROUP BY ${bucketExpression} ORDER BY date`;
 
     const result = await client.queryObject<{date: Date; count: number}>(query, params);
 
     return result.rows.map(row => ({
-      date: row.date.toISOString().split('T')[0],
+      date: formatBucket(row.date, rollupSeconds, timezone),
       count: Number(row.count),
     }));
   } finally {
     client.release();
   }
+}
+
+function formatBucket(bucket: Date, rollupSeconds: number, timezone: string): string {
+  const plainDateTime = Temporal.PlainDateTime.from(
+    bucket.toISOString().replace('Z', ''),
+  );
+
+  if (rollupSeconds % (24 * 60 * 60) === 0) {
+    return plainDateTime.toPlainDate().toString();
+  }
+
+  return plainDateTime.toZonedDateTime(timezone).toString({timeZoneName: 'never'});
 }
 
 /**

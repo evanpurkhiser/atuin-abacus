@@ -85,7 +85,13 @@ Get statistics including total command count and timestamp of the most recent co
 
 ### `GET /history`
 
-Get daily command counts over time.
+Get command counts over time. Results default to daily buckets.
+
+**Query Parameters:**
+
+- `rollup` (optional): Fixed bucket duration using `s`, `m`, `h`, `d`, or `w` (for example,
+  `30s`, `5m`, `2h`, or `7d`; default: `1d`). Buckets are aligned in the requested timezone.
+  Whole-day buckets start on Monday-aligned boundaries.
 
 **Example Response:**
 
@@ -95,6 +101,12 @@ Get daily command counts over time.
   {"date": "2024-01-16", "count": 189},
   {"date": "2024-01-17", "count": 312}
 ]
+```
+
+For example, fetch five-minute counts for the last day:
+
+```bash
+curl 'http://localhost:8000/history?period=1d&rollup=5m'
 ```
 
 ### `GET /time-of-day`

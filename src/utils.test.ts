@@ -1,6 +1,6 @@
 import {assert, assertEquals, assertExists} from '@std/assert';
 
-import {parsePeriod} from './utils.ts';
+import {parsePeriod, parseRollup} from './utils.ts';
 
 Deno.test('parsePeriod with valid year format', () => {
   const result = parsePeriod('1y', 'UTC');
@@ -77,4 +77,21 @@ Deno.test('parsePeriod respects timezone', () => {
   // (unless it happens to be the exact same calendar day in both timezones)
   assert(resultUTC.endDate !== null);
   assert(resultPST.endDate !== null);
+});
+
+Deno.test('parseRollup parses fixed durations down to seconds', () => {
+  assertEquals(parseRollup('1s'), 1);
+  assertEquals(parseRollup('90s'), 90);
+  assertEquals(parseRollup('5m'), 300);
+  assertEquals(parseRollup('2h'), 7200);
+  assertEquals(parseRollup('7d'), 604800);
+  assertEquals(parseRollup('2w'), 1209600);
+});
+
+Deno.test('parseRollup rejects invalid durations', () => {
+  assertEquals(parseRollup('0s'), null);
+  assertEquals(parseRollup('-1s'), null);
+  assertEquals(parseRollup('1.5h'), null);
+  assertEquals(parseRollup('1month'), null);
+  assertEquals(parseRollup('999999999999999999s'), null);
 });

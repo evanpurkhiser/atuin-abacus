@@ -4,9 +4,15 @@ import {cache} from 'hono/cache';
 import {cors} from 'hono/cors';
 import {HTTPException} from 'hono/http-exception';
 
-import type {DailyCommandCount, Period, Stats, TimeOfDayStats} from './db.ts';
+import type {
+  DailyCommandCount,
+  HistoryPeriod,
+  Period,
+  Stats,
+  TimeOfDayStats,
+} from './db.ts';
 import {generateContributionGraph} from './svg.ts';
-import {parsePeriod} from './utils.ts';
+import {parsePeriod, parseRollup} from './utils.ts';
 
 /**
  * Get the system's default timezone using Temporal API
@@ -66,7 +72,7 @@ function validateDateParams(start?: string, end?: string): string | null {
 }
 
 export interface DbFunctions {
-  getCommandsPerDay: (opts: Period) => Promise<DailyCommandCount[]>;
+  getCommandsPerDay: (opts: HistoryPeriod) => Promise<DailyCommandCount[]>;
   getTimeOfDayStats: (opts: Period) => Promise<TimeOfDayStats>;
   getStats: (opts: Period) => Promise<Stats>;
 }
@@ -117,6 +123,19 @@ export function createApp(db: DbFunctions, cacheTtlSeconds = 300) {
     return {startDate, endDate, timezone};
   };
 
+  const getRollupFromContext = (c: Context<{Variables: Variables}>): number => {
+    const rollup = c.req.query('rollup') || '1d';
+    const seconds = parseRollup(rollup);
+
+    if (seconds === null) {
+      throw new HTTPException(400, {
+        message: `Invalid rollup format. Expected <number><unit> using s, m, h, d, or w (e.g., "30s", "5m", "2h", "7d"), got: ${rollup}`,
+      });
+    }
+
+    return seconds;
+  };
+
   // CORS middleware
   app.use('*', cors());
 
@@ -151,7 +170,8 @@ export function createApp(db: DbFunctions, cacheTtlSeconds = 300) {
   // History
   app.get('/history', cacheMiddleware, async c => {
     const period = getPeriodFromContext(c);
-    const data = await db.getCommandsPerDay(period);
+    const rollupSeconds = getRollupFromContext(c);
+    const data = await db.getCommandsPerDay({...period, rollupSeconds});
     return c.json(data);
   });
 

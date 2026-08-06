@@ -54,6 +54,35 @@ Deno.test('History endpoint with date range', async () => {
   assert(Array.isArray(data));
 });
 
+Deno.test('History endpoint passes rollup to the database', async () => {
+  let receivedRollupSeconds: number | undefined;
+  const rollupApp = createApp({
+    ...mockDb,
+    getCommandsPerDay: opts => {
+      receivedRollupSeconds = opts.rollupSeconds;
+      return Promise.resolve([]);
+    },
+  });
+  const req = new Request(
+    `http://localhost/history?rollup=90s&nocache=${crypto.randomUUID()}`,
+  );
+  const res = await rollupApp.fetch(req);
+
+  assertEquals(res.status, 200);
+  assertEquals(receivedRollupSeconds, 90);
+});
+
+Deno.test('History endpoint rejects invalid rollup', async () => {
+  const req = new Request('http://localhost/history?rollup=1month');
+  const res = await app.fetch(req);
+
+  assertEquals(res.status, 400);
+
+  const data = await res.json();
+  assertExists(data.error);
+  assert(data.error.includes('Invalid rollup'));
+});
+
 Deno.test('History endpoint with invalid date format', async () => {
   const req = new Request('http://localhost/history?start=invalid-date');
   const res = await app.fetch(req);

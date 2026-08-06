@@ -43,3 +43,31 @@ export function parsePeriod(
     endDate: endDate.toString(),
   };
 }
+
+const ROLLUP_SECONDS = {
+  s: 1,
+  m: 60,
+  h: 60 * 60,
+  d: 24 * 60 * 60,
+  w: 7 * 24 * 60 * 60,
+} as const;
+
+/**
+ * Parse a fixed rollup duration such as "30s", "5m", "2h", or "7d".
+ */
+export function parseRollup(rollup: string): number | null {
+  const match = rollup.match(/^(\d+)([smhdw])$/i);
+  if (!match) {
+    return null;
+  }
+
+  const value = Number(match[1]);
+  const unit = match[2].toLowerCase() as keyof typeof ROLLUP_SECONDS;
+  const seconds = value * ROLLUP_SECONDS[unit];
+
+  if (value <= 0 || !Number.isSafeInteger(seconds)) {
+    return null;
+  }
+
+  return seconds;
+}
