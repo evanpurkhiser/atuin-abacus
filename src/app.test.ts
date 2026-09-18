@@ -12,7 +12,7 @@ const mockDb: DbFunctions = {
     ]),
   getTimeOfDayStats: () =>
     Promise.resolve({
-      hourly: Array(24).fill(5),
+      hourly: new Array(24).fill(5),
     }),
   getStats: () =>
     Promise.resolve({
