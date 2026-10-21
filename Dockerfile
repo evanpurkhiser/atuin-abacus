@@ -14,7 +14,7 @@ WORKDIR /app
 # Install Deno
 ENV DENO_INSTALL=/root/.deno
 ENV PATH=$DENO_INSTALL/bin:$PATH
-RUN curl -fsSL https://deno.land/install.sh | sh -s v2.6.5
+RUN curl -fsSL https://deno.land/install.sh | sh -s v2.9.8
 
 # Copy application files
 COPY deno.json deno.lock ./
