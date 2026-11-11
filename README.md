@@ -4,9 +4,11 @@
 
 📊 _Lightweight metrics API for [Atuin](https://atuin.sh) shell history_
 
-**Atuin Abacus** is a simple REST API that provides analytics and insights from your Atuin shell
-history database. Query your command usage patterns, visualize when you're most active in the
-terminal, and track your productivity over time.
+**Atuin Abacus** is a simple REST API that provides analytics
+and insights from your Atuin shell history database.
+Query your command usage patterns,
+visualize when you're most active in the terminal,
+and track your productivity over time.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://apis.evanpurkhiser.com/atuin-abacus/graph.svg?period=1y&cellBackground=%23161b22&textColor=%23c9d1d9">
@@ -17,7 +19,8 @@ terminal, and track your productivity over time.
 ## Features
 
 - **Command History Analytics**: Track your shell command usage over time
-- **SVG Contribution Graph**: Generate beautiful GitHub-style visualizations of your activity
+- **SVG Contribution Graph**:
+  Generate beautiful GitHub-style visualizations of your activity
 - **Time-of-Day Distribution**: See when you're most active in the terminal
 - **Timezone Support**: Query metrics in any timezone via the `Prefer` header
 - **Date Range Filtering**: Analyze specific time periods
@@ -54,13 +57,15 @@ deno task dev
 
 ### Common Parameters
 
-All endpoints support the following parameters for filtering data by time period:
+All endpoints support the following parameters
+for filtering data by time period:
 
 **Query Parameters:**
 
 - `start` (optional): Start date in `YYYY-MM-DD` format
 - `end` (optional): End date in `YYYY-MM-DD` format
-- `period` (optional): Time period shorthand (e.g., `1y`, `6m`, `30d`). If provided, takes precedence over `start`/`end`
+- `period` (optional): Time period shorthand (e.g., `1y`, `6m`, `30d`).
+  If provided, takes precedence over `start`/`end`
 
 **Timezone Support:**
 
@@ -72,7 +77,8 @@ curl -H "Prefer: timezone=America/Los_Angeles" http://localhost:8000/history
 
 ### `GET /`
 
-Get statistics including total command count and timestamp of the most recent command.
+Get statistics including total command count
+and timestamp of the most recent command.
 
 **Example Response:**
 
@@ -85,12 +91,14 @@ Get statistics including total command count and timestamp of the most recent co
 
 ### `GET /history`
 
-Get command counts over time. Results default to daily buckets.
+Get command counts over time.
+Results default to daily buckets.
 
 **Query Parameters:**
 
-- `rollup` (optional): Fixed bucket duration using `s`, `m`, `h`, `d`, or `w` (for example,
-  `30s`, `5m`, `2h`, or `7d`; default: `1d`). Buckets are aligned in the requested timezone.
+- `rollup` (optional): Fixed bucket duration using `s`, `m`, `h`, `d`, or `w`
+  (for example, `30s`, `5m`, `2h`, or `7d`; default: `1d`).
+  Buckets are aligned in the requested timezone.
   Whole-day buckets start on Monday-aligned boundaries.
 
 **Example Response:**
@@ -128,17 +136,22 @@ Get average command distribution across 24 hours.
 
 ### `GET /graph.svg`
 
-Generate a GitHub-style contribution graph SVG visualization of your command history.
+Generate a GitHub-style contribution graph SVG visualization of your command
+history.
 
 **Additional Query Parameters:**
 
-- `color` or `baseColor` (optional): Base color for the heat map (default: `#fb7185`)
+- `color` or `baseColor` (optional): Base color for the heat map
+  (default: `#fb7185`)
 - `textColor` (optional): Color for labels and text (default: `#57606a`)
-- `cellBackground` (optional): Background color for empty cells (default: `#ebedf0`)
+- `cellBackground` (optional): Background color for empty cells
+  (default: `#ebedf0`)
 - `cellSize` (optional): Size of each cell in pixels (default: `12`)
 - `cellGap` (optional): Gap between cells in pixels (default: `3`)
-- `showMonthLabels` (optional): Show month labels (`true` or `false`, default: `true`)
-- `showDayLabels` (optional): Show day of week labels (`true` or `false`, default: `true`)
+- `showMonthLabels` (optional): Show month labels
+  (`true` or `false`, default: `true`)
+- `showDayLabels` (optional): Show day of week labels
+  (`true` or `false`, default: `true`)
 
 **Example:**
 
@@ -153,7 +166,8 @@ curl "http://localhost:8000/graph.svg?showMonthLabels=false&showDayLabels=false"
 **Features:**
 
 - Visualizes daily command counts as a color-coded heat map
-- Uses logarithmic scaling with percentile-based thresholds for better distribution
+- Uses logarithmic scaling with percentile-based thresholds
+  for better distribution
 - Includes month separator lines that weave through the grid
 - Shows color legend and statistics in the footer
 - Perfect for embedding in GitHub READMEs or documentation
@@ -162,7 +176,8 @@ curl "http://localhost:8000/graph.svg?showMonthLabels=false&showDayLabels=false"
 
 Set these environment variables in `.env` or pass them to Docker:
 
-- `DATABASE_URL` (required): PostgreSQL connection string for your Atuin database
+- `DATABASE_URL` (required):
+  PostgreSQL connection string for your Atuin database
   - Example: `postgresql://atuin:password@localhost:5432/atuin`
 - `PORT` (optional): Port to listen on (default: 8000)
 
@@ -177,8 +192,9 @@ deno task lint         # Lint code
 
 ## Deployment
 
-The application is automatically built and published as a Docker image to GitHub Container Registry
-on every push to main. Use it in production with:
+The application is automatically built and published
+as a Docker image to GitHub Container Registry on every push to main.
+Use it in production with:
 
 ```bash
 docker run -d \
