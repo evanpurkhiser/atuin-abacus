@@ -205,8 +205,8 @@ async fn prepare_settings(config: &AtuinSyncConfig) -> Result<Settings> {
 }
 
 fn install_key(path: &std::path::Path, encoded: &secrecy::SecretString) -> Result<()> {
-    let supplied =
-        paseto_v4::Key::decode(encoded.expose_secret()).context("decode ATUIN_ENCRYPTION_KEY")?;
+    let supplied = paseto_v4::Key::try_from_mnemonic(encoded.expose_secret())
+        .context("decode ATUIN_ENCRYPTION_KEY")?;
 
     if path.exists() {
         let stored =
@@ -263,6 +263,10 @@ mod tests {
         install_key(&path, &encoded).unwrap();
 
         assert_eq!(paseto_v4::Key::try_load_from_path(&path).unwrap(), key);
+
+        let mnemonic = key.try_mnemonic().unwrap();
+        let mnemonic = SecretString::from(mnemonic.phrase().to_owned());
+        install_key(&path, &mnemonic).unwrap();
 
         let other = paseto_v4::Key::generate();
         let other = SecretString::from(other.encode().dangerously_leak_secret().to_owned());
