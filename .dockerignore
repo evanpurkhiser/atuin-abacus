@@ -1,4 +1,4 @@
 .env
 .env.*
-eslint.config.mjs
-.oxfmtrc.jsonc
+target
+.live-sync

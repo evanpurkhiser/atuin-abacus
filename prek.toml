@@ -41,8 +41,8 @@ hooks = [{ id = "zizmor", args = ["--min-severity", "high"], priority = 11 }]
 repo = "https://github.com/evanpurkhiser/prek-personal"
 rev = "v1.0.2"
 hooks = [
-  { id = "oxfmt-system", priority = 10 },
+  { id = "rustfmt-system", priority = 10 },
   { id = "shfmt-system", priority = 10 },
-  { id = "oxlint-system", priority = 11 },
+  { id = "clippy-system", priority = 11 },
   { id = "shellcheck-system", priority = 11 },
 ]

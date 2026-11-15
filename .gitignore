@@ -2,6 +2,7 @@
 .env.local
 .env.test.local
 coverage/
-.deno/
 *.log
 .DS_Store
+.live-sync/
+target/

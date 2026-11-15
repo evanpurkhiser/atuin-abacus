@@ -2,13 +2,10 @@
 
 [![Build Status](https://github.com/evanpurkhiser/atuin-abacus/actions/workflows/main.yml/badge.svg)](https://github.com/evanpurkhiser/atuin-abacus/actions/workflows/main.yml)
 
-📊 _Lightweight metrics API for [Atuin](https://atuin.sh) shell history_
-
-**Atuin Abacus** is a simple REST API that provides analytics
-and insights from your Atuin shell history database.
-Query your command usage patterns,
-visualize when you're most active in the terminal,
-and track your productivity over time.
+Atuin Abacus is a metrics API for shell history
+and captured coding-agent conversations.
+It builds local projections of encrypted shell-history
+and coding-agent records downloaded from an Atuin sync server.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://apis.evanpurkhiser.com/atuin-abacus/graph.svg?period=1y&cellBackground=%23161b22&textColor=%23c9d1d9">
@@ -16,198 +13,120 @@ and track your productivity over time.
   <img alt="Command History Activity Graph" src="https://apis.evanpurkhiser.com/atuin-abacus/graph.svg?period=1y">
 </picture>
 
-## Features
+## Agent synchronization
 
-- **Command History Analytics**: Track your shell command usage over time
-- **SVG Contribution Graph**:
-  Generate beautiful GitHub-style visualizations of your activity
-- **Time-of-Day Distribution**: See when you're most active in the terminal
-- **Timezone Support**: Query metrics in any timezone via the `Prefer` header
-- **Date Range Filtering**: Analyze specific time periods
-- **Read-Only**: Safe to run against your production Atuin database
-- **Lightweight**: Built with Deno and Hono for minimal resource usage
+Abacus acts as a download-only Atuin client:
 
-## Quick Start
+1. It synchronizes encrypted history and `ai-session` records into `records.db`.
+2. It uses the account encryption key to project them into `history.db`
+   and `threads.db`.
+3. It snapshots command timestamps and classifies visible human prompts
+   and assistant responses into an in-memory event snapshot used by the API.
 
-### Using Docker (Recommended)
+The record store and projection live under `ABACUS_DATA_DIR`
+and must be on a persistent filesystem.
+An initial sync can be several gigabytes;
+subsequent syncs use Atuin's record diff and projection watermarks.
 
-```bash
-docker run -d \
-  -p 8000:8000 \
-  -e DATABASE_URL="postgresql://user:pass@host:5432/atuin" \
-  ghcr.io/evanpurkhiser/atuin-abacus:latest
-```
+Abacus reads the sync server, authentication token,
+and encryption key through Atuin's standard client settings.
+Give the service a dedicated Atuin home containing `config.toml`
+and a writable `data` directory with `meta.db` and `key`,
+then set `ATUIN_HOME` to it.
+It does not write captured records or upload local state.
 
-### Local Development
+## API
 
-```bash
-# Clone the repository
-git clone https://github.com/evanpurkhiser/atuin-abacus.git
-cd atuin-abacus
+Every time-series endpoint accepts:
 
-# Configure your Atuin database connection
-cp .env.example .env
-# Edit .env with your DATABASE_URL
-
-# Start the server
-deno task dev
-```
-
-## API Reference
-
-### Common Parameters
-
-All endpoints support the following parameters
-for filtering data by time period:
-
-**Query Parameters:**
-
-- `start` (optional): Start date in `YYYY-MM-DD` format
-- `end` (optional): End date in `YYYY-MM-DD` format
-- `period` (optional): Time period shorthand (e.g., `1y`, `6m`, `30d`).
-  If provided, takes precedence over `start`/`end`
-
-**Timezone Support:**
-
-All endpoints support timezone specification via the `Prefer` header:
-
-```bash
-curl -H "Prefer: timezone=America/Los_Angeles" http://localhost:8000/history
-```
-
-### `GET /`
-
-Get statistics including total command count
-and timestamp of the most recent command.
-
-**Example Response:**
-
-```json
-{
-  "total": 42891,
-  "lastCommandAt": "2026-01-30T16:38:11.317Z"
-}
-```
+- `start` and `end` in `YYYY-MM-DD` format.
+- `period`, such as `1y`, `6m`, or `30d`, which takes precedence over dates.
+- `rollup`, a fixed duration such as `30s`, `5m`, `2h`, or `7d` where supported.
+- `Prefer: timezone=America/New_York` to select the bucketing timezone.
 
 ### `GET /history`
 
-Get command counts over time.
-Results default to daily buckets.
-
-**Query Parameters:**
-
-- `rollup` (optional): Fixed bucket duration using `s`, `m`, `h`, `d`, or `w`
-  (for example, `30s`, `5m`, `2h`, or `7d`; default: `1d`).
-  Buckets are aligned in the requested timezone.
-  Whole-day buckets start on Monday-aligned boundaries.
-
-**Example Response:**
+Returns command counts.
+Buckets default to one day.
 
 ```json
 [
-  {"date": "2024-01-15", "count": 234},
-  {"date": "2024-01-16", "count": 189},
-  {"date": "2024-01-17", "count": 312}
+  {"date": "2026-11-11", "count": 234},
+  {"date": "2026-11-12", "count": 189}
 ]
 ```
 
-For example, fetch five-minute counts for the last day:
+### `GET /agent-history`
 
-```bash
-curl 'http://localhost:8000/history?period=1d&rollup=5m'
-```
-
-### `GET /time-of-day`
-
-Get average command distribution across 24 hours.
-
-**Example Response:**
+Returns human prompts and visible assistant responses.
+Copied fork history is deduplicated by root session,
+split assistant messages are counted once per turn,
+and subagent-only conversations and tool results are excluded.
 
 ```json
-{
-  "hourly": [
-    0.5, // 00:00 - 01:00
-    0.2, // 01:00 - 02:00
-    0.1 // 02:00 - 03:00
-    // ... 24 values total
-  ]
-}
+[
+  {"date": "2026-11-11", "prompts": 82, "responses": 117},
+  {"date": "2026-11-12", "prompts": 64, "responses": 91}
+]
 ```
 
-### `GET /graph.svg`
+### Other endpoints
 
-Generate a GitHub-style contribution graph SVG visualization of your command
-history.
-
-**Additional Query Parameters:**
-
-- `color` or `baseColor` (optional): Base color for the heat map
-  (default: `#fb7185`)
-- `textColor` (optional): Color for labels and text (default: `#57606a`)
-- `cellBackground` (optional): Background color for empty cells
-  (default: `#ebedf0`)
-- `cellSize` (optional): Size of each cell in pixels (default: `12`)
-- `cellGap` (optional): Gap between cells in pixels (default: `3`)
-- `showMonthLabels` (optional): Show month labels
-  (`true` or `false`, default: `true`)
-- `showDayLabels` (optional): Show day of week labels
-  (`true` or `false`, default: `true`)
-
-**Example:**
-
-```bash
-# Generate a graph for the last year with custom colors
-curl "http://localhost:8000/graph.svg?period=1y&color=%23ff6b6b" > graph.svg
-
-# Minimal graph without labels
-curl "http://localhost:8000/graph.svg?showMonthLabels=false&showDayLabels=false" > graph.svg
-```
-
-**Features:**
-
-- Visualizes daily command counts as a color-coded heat map
-- Uses logarithmic scaling with percentile-based thresholds
-  for better distribution
-- Includes month separator lines that weave through the grid
-- Shows color legend and statistics in the footer
-- Perfect for embedding in GitHub READMEs or documentation
+- `GET /` returns the total command count and most recent command timestamp.
+- `GET /time-of-day` returns average command counts for each hour.
+- `GET /graph.svg` returns the command contribution graph.
 
 ## Configuration
 
-Set these environment variables in `.env` or pass them to Docker:
-
-- `DATABASE_URL` (required):
-  PostgreSQL connection string for your Atuin database
-  - Example: `postgresql://atuin:password@localhost:5432/atuin`
-- `PORT` (optional): Port to listen on (default: 8000)
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `HOST` | `127.0.0.1` | HTTP listen address |
+| `PORT` | `8000` | HTTP listen port |
+| `CACHE_TTL_SECONDS` | `300` | Response cache-control lifetime |
+| `ATUIN_SYNC_INTERVAL_SECONDS` | `300` | Delay between completed sync attempts |
+| `ABACUS_DATA_DIR` | `.local/atuin-abacus` | Persistent record and projection storage |
+| `ATUIN_HOME` | Atuin default | Directory containing client configuration, authentication, and key |
+| `SENTRY_DSN` | unset | Sentry error-reporting DSN |
+| `SENTRY_ENVIRONMENT` | `production` | Sentry environment |
+| `SENTRY_RELEASE` | unset | Sentry release identifier |
 
 ## Development
 
+Rust 1.96 or newer is required.
+
 ```bash
-deno task dev          # Start with auto-reload
-deno task test         # Run tests
-deno task format       # Format code
-deno task lint         # Lint code
+cargo test
+cargo clippy --all-targets -- -D warnings
+cargo fmt --all -- --check
 ```
 
-## Deployment
-
-The application is automatically built and published
-as a Docker image to GitHub Container Registry on every push to main.
-Use it in production with:
+Run one synchronization without starting HTTP:
 
 ```bash
-docker run -d \
-  --name atuin-abacus \
-  --restart unless-stopped \
-  -p 8000:8000 \
-  -e DATABASE_URL="postgresql://user:pass@host:5432/atuin" \
+ABACUS_DATA_DIR=.local/atuin-abacus \
+cargo run -- sync-once
+```
+
+Run the service:
+
+```bash
+cp .env.example .env
+cargo run
+```
+
+## Container
+
+The image runs as UID 10001
+and stores synchronized state in `/var/lib/atuin-abacus`.
+
+```bash
+docker run --rm \
+  -p 8888:8888 \
+  -e ATUIN_HOME=/run/atuin \
+  -v atuin-abacus-data:/var/lib/atuin-abacus \
+  -v atuin-client-home:/run/atuin \
   ghcr.io/evanpurkhiser/atuin-abacus:latest
 ```
 
-## Tech Stack
-
-- **[Deno](https://deno.com/)**: Modern JavaScript/TypeScript runtime
-- **[Hono](https://hono.dev/)**: Fast web framework
-- **[postgres](https://deno.land/x/postgres)**: PostgreSQL client for Deno
-- **Docker**: Containerized deployment
+The Atuin home volume must contain `config.toml` and writable `data` storage
+for `meta.db` and the account encryption key.
