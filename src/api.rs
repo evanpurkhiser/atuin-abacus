@@ -85,8 +85,8 @@ struct GraphQuery {
     cell_background: Option<String>,
     cell_size: Option<u32>,
     cell_gap: Option<u32>,
-    show_month_labels: Option<String>,
-    show_day_labels: Option<String>,
+    show_month_labels: Option<bool>,
+    show_day_labels: Option<bool>,
 }
 
 async fn graph(
@@ -121,8 +121,8 @@ async fn graph(
         &SvgOptions {
             cell_size,
             cell_gap,
-            show_month_labels: parse_boolean(query.show_month_labels.as_deref(), true),
-            show_day_labels: parse_boolean(query.show_day_labels.as_deref(), true),
+            show_month_labels: query.show_month_labels.unwrap_or(true),
+            show_day_labels: query.show_day_labels.unwrap_or(true),
             base_color: query
                 .color
                 .or(query.base_color)
@@ -162,10 +162,6 @@ fn timezone(headers: &HeaderMap, default: Tz) -> Result<Tz, ApiError> {
     requested
         .parse()
         .map_err(|_| ApiError::BadRequest(format!("Invalid timezone: {requested}")))
-}
-
-fn parse_boolean(value: Option<&str>, default: bool) -> bool {
-    value.map_or(default, |value| matches!(value, "true" | "1"))
 }
 
 fn cached_json<T: Serialize>(state: &AppState, value: T) -> Response {
@@ -276,8 +272,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn rejects_unsafe_graph_dimensions() {
-        let response = app()
+    async fn rejects_invalid_graph_options() {
+        let dimensions = app()
+            .clone()
             .oneshot(
                 Request::get("/graph.svg?cellSize=4294967295")
                     .body(Body::empty())
@@ -285,7 +282,16 @@ mod tests {
             )
             .await
             .unwrap();
+        let labels = app()
+            .oneshot(
+                Request::get("/graph.svg?showMonthLabels=1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
 
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(dimensions.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(labels.status(), StatusCode::BAD_REQUEST);
     }
 }

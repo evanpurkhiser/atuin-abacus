@@ -12,6 +12,7 @@ mod agents;
 mod api;
 mod config;
 mod history;
+mod history_projection;
 mod period;
 mod svg;
 mod sync;
