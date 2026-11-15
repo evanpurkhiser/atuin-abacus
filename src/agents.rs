@@ -7,7 +7,9 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::{Row, SqlitePool};
 use tokio::sync::RwLock;
 
-use crate::period::{HistoryPeriod, bucket_local_seconds, format_local_bucket, utc_millis_bounds};
+use crate::period::{
+    TimeSeriesPeriod, bucket_local_seconds, format_local_bucket, utc_millis_bounds,
+};
 
 const TEXT_BLOCK: i64 = 1;
 const SUMMARY_BLOCK: i64 = 1 << 6;
@@ -40,11 +42,31 @@ enum AgentEventKind {
 impl AgentStore {
     #[cfg(test)]
     pub(crate) fn empty() -> Self {
+        Self::with_event_timestamps([], [])
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_event_timestamps(
+        prompts: impl IntoIterator<Item = i64>,
+        responses: impl IntoIterator<Item = i64>,
+    ) -> Self {
+        let events = prompts
+            .into_iter()
+            .map(|timestamp| AgentEvent {
+                timestamp,
+                kind: AgentEventKind::Prompt,
+            })
+            .chain(responses.into_iter().map(|timestamp| AgentEvent {
+                timestamp,
+                kind: AgentEventKind::Response,
+            }))
+            .collect::<Vec<_>>();
+
         Self {
             pool: SqlitePoolOptions::new()
                 .connect_lazy("sqlite::memory:")
                 .expect("in-memory SQLite URL is valid"),
-            events: Arc::new(RwLock::new(Arc::new([]))),
+            events: Arc::new(RwLock::new(events.into())),
         }
     }
 
@@ -125,7 +147,7 @@ ORDER BY timestamp
         Ok(())
     }
 
-    pub async fn buckets(&self, opts: &HistoryPeriod) -> Vec<AgentBucket> {
+    pub async fn buckets(&self, opts: &TimeSeriesPeriod) -> Vec<AgentBucket> {
         let (start, end) = utc_millis_bounds(&opts.period);
         let mut buckets: BTreeMap<i64, AgentBucket> = BTreeMap::new();
         let events = self.events.read().await.clone();
@@ -152,7 +174,7 @@ ORDER BY timestamp
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::period::{HistoryPeriod, Period};
+    use crate::period::{Period, TimeSeriesPeriod};
     use sqlx::Executor;
 
     #[tokio::test]
@@ -212,7 +234,7 @@ INSERT INTO messages VALUES
 
         let store = AgentStore::open(&path).await.unwrap();
         let buckets = store
-            .buckets(&HistoryPeriod {
+            .buckets(&TimeSeriesPeriod {
                 period: Period {
                     start: None,
                     end: None,

@@ -11,7 +11,7 @@ pub struct Period {
 }
 
 #[derive(Clone, Debug)]
-pub struct HistoryPeriod {
+pub struct TimeSeriesPeriod {
     pub period: Period,
     pub rollup_seconds: i64,
 }
@@ -70,13 +70,13 @@ impl PeriodQuery {
         })
     }
 
-    pub fn parse_history(&self, timezone: Tz) -> Result<HistoryPeriod, PeriodError> {
+    pub fn parse_time_series(&self, timezone: Tz) -> Result<TimeSeriesPeriod, PeriodError> {
         let period = self.parse(timezone)?;
         let rollup = self.rollup.as_deref().unwrap_or("1d");
         let rollup_seconds =
             parse_rollup(rollup).ok_or_else(|| PeriodError::Rollup(rollup.to_owned()))?;
 
-        Ok(HistoryPeriod {
+        Ok(TimeSeriesPeriod {
             period,
             rollup_seconds,
         })

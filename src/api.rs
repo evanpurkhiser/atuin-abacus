@@ -11,8 +11,19 @@ use tower_http::trace::TraceLayer;
 
 use crate::agents::AgentStore;
 use crate::history::HistoryStore;
-use crate::period::{HistoryPeriod, PeriodError, PeriodQuery};
-use crate::svg::{SvgOptions, generate_contribution_graph};
+use crate::period::{PeriodError, PeriodQuery, TimeSeriesPeriod};
+use crate::svg::{ContributionDay, GraphLabels, SvgOptions, generate_contribution_graph};
+
+const SHELL_GRAPH_LABELS: GraphLabels = GraphLabels {
+    aria_label: "Shell history contribution graph",
+    singular: "command",
+    plural: "commands",
+};
+const AGENT_GRAPH_LABELS: GraphLabels = GraphLabels {
+    aria_label: "Agent prompt contribution graph",
+    singular: "prompt",
+    plural: "prompts",
+};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -25,10 +36,11 @@ pub struct AppState {
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/", get(stats))
-        .route("/history", get(history))
+        .route("/shell-history", get(shell_history))
         .route("/agent-history", get(agent_history))
         .route("/time-of-day", get(time_of_day))
-        .route("/graph.svg", get(graph))
+        .route("/shell-graph.svg", get(shell_graph))
+        .route("/agent-graph.svg", get(agent_graph))
         .fallback(not_found)
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
@@ -44,12 +56,12 @@ async fn stats(
     Ok(cached_json(&state, state.history.stats(&period).await))
 }
 
-async fn history(
+async fn shell_history(
     State(state): State<AppState>,
     headers: HeaderMap,
     Query(query): Query<PeriodQuery>,
 ) -> Result<Response, ApiError> {
-    let period = query.parse_history(timezone(&headers, state.default_timezone)?)?;
+    let period = query.parse_time_series(timezone(&headers, state.default_timezone)?)?;
     Ok(cached_json(&state, state.history.buckets(&period).await))
 }
 
@@ -58,7 +70,7 @@ async fn agent_history(
     headers: HeaderMap,
     Query(query): Query<PeriodQuery>,
 ) -> Result<Response, ApiError> {
-    let period = query.parse_history(timezone(&headers, state.default_timezone)?)?;
+    let period = query.parse_time_series(timezone(&headers, state.default_timezone)?)?;
     Ok(cached_json(&state, state.agents.buckets(&period).await))
 }
 
@@ -89,11 +101,60 @@ struct GraphQuery {
     show_day_labels: Option<bool>,
 }
 
-async fn graph(
+async fn shell_graph(
     State(state): State<AppState>,
     headers: HeaderMap,
     Query(query): Query<GraphQuery>,
 ) -> Result<Response, ApiError> {
+    let (period, options) = parse_graph_request(
+        query,
+        timezone(&headers, state.default_timezone)?,
+        SHELL_GRAPH_LABELS,
+    )?;
+    let data = state
+        .history
+        .buckets(&period)
+        .await
+        .into_iter()
+        .map(|bucket| ContributionDay {
+            date: bucket.date,
+            count: bucket.count,
+        })
+        .collect::<Vec<_>>();
+
+    Ok(graph_response(&state, &data, &options))
+}
+
+async fn agent_graph(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<GraphQuery>,
+) -> Result<Response, ApiError> {
+    let (period, options) = parse_graph_request(
+        query,
+        timezone(&headers, state.default_timezone)?,
+        AGENT_GRAPH_LABELS,
+    )?;
+    let data = state
+        .agents
+        .buckets(&period)
+        .await
+        .into_iter()
+        .filter(|bucket| bucket.prompts > 0)
+        .map(|bucket| ContributionDay {
+            date: bucket.date,
+            count: bucket.prompts,
+        })
+        .collect::<Vec<_>>();
+
+    Ok(graph_response(&state, &data, &options))
+}
+
+fn parse_graph_request(
+    query: GraphQuery,
+    timezone: Tz,
+    labels: GraphLabels,
+) -> Result<(TimeSeriesPeriod, SvgOptions), ApiError> {
     let cell_size = query.cell_size.unwrap_or(12);
     if !(1..=64).contains(&cell_size) {
         return Err(ApiError::BadRequest(
@@ -106,19 +167,14 @@ async fn graph(
             "cellGap must be between 0 and 64".to_owned(),
         ));
     }
-    let period = query
-        .period
-        .parse(timezone(&headers, state.default_timezone)?)?;
-    let data = state
-        .history
-        .buckets(&HistoryPeriod {
+    let period = query.period.parse(timezone)?;
+
+    Ok((
+        TimeSeriesPeriod {
             period,
             rollup_seconds: 86_400,
-        })
-        .await;
-    let svg = generate_contribution_graph(
-        &data,
-        &SvgOptions {
+        },
+        SvgOptions {
             cell_size,
             cell_gap,
             show_month_labels: query.show_month_labels.unwrap_or(true),
@@ -131,15 +187,20 @@ async fn graph(
             cell_background: query
                 .cell_background
                 .unwrap_or_else(|| "#ebedf0".to_owned()),
+            labels,
         },
-    );
+    ))
+}
+
+fn graph_response(state: &AppState, data: &[ContributionDay], options: &SvgOptions) -> Response {
+    let svg = generate_contribution_graph(data, options);
     let mut response = svg.into_response();
     response.headers_mut().insert(
         header::CONTENT_TYPE,
         HeaderValue::from_static("image/svg+xml; charset=utf-8"),
     );
-    cache_header(&state, &mut response);
-    Ok(response)
+    cache_header(state, &mut response);
+    response
 }
 
 async fn not_found() -> impl IntoResponse {
@@ -203,7 +264,7 @@ impl IntoResponse for ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::body::Body;
+    use axum::body::{Body, to_bytes};
     use axum::http::Request;
     use tower::ServiceExt;
 
@@ -213,6 +274,18 @@ mod tests {
             agents: AgentStore::empty(),
             cache_ttl_seconds: 300,
             default_timezone: chrono_tz::America::New_York,
+        })
+    }
+
+    fn app_with_agent_events(
+        prompts: impl IntoIterator<Item = i64>,
+        responses: impl IntoIterator<Item = i64>,
+    ) -> Router {
+        router(AppState {
+            history: HistoryStore::with_timestamps(Vec::<i64>::new()),
+            agents: AgentStore::with_event_timestamps(prompts, responses),
+            cache_ttl_seconds: 300,
+            default_timezone: chrono_tz::UTC,
         })
     }
 
@@ -243,7 +316,7 @@ mod tests {
     async fn handles_methods_cache_and_cors() {
         let response = app()
             .clone()
-            .oneshot(Request::get("/history").body(Body::empty()).unwrap())
+            .oneshot(Request::get("/shell-history").body(Body::empty()).unwrap())
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
@@ -251,7 +324,7 @@ mod tests {
 
         let response = app()
             .clone()
-            .oneshot(Request::post("/history").body(Body::empty()).unwrap())
+            .oneshot(Request::post("/shell-history").body(Body::empty()).unwrap())
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
@@ -260,7 +333,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("OPTIONS")
-                    .uri("/history")
+                    .uri("/shell-history")
                     .header(header::ORIGIN, "https://example.com")
                     .header(header::ACCESS_CONTROL_REQUEST_METHOD, "GET")
                     .body(Body::empty())
@@ -276,7 +349,7 @@ mod tests {
         let dimensions = app()
             .clone()
             .oneshot(
-                Request::get("/graph.svg?cellSize=4294967295")
+                Request::get("/shell-graph.svg?cellSize=4294967295")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -284,7 +357,7 @@ mod tests {
             .unwrap();
         let labels = app()
             .oneshot(
-                Request::get("/graph.svg?showMonthLabels=1")
+                Request::get("/agent-graph.svg?showMonthLabels=1")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -293,5 +366,27 @@ mod tests {
 
         assert_eq!(dimensions.status(), StatusCode::BAD_REQUEST);
         assert_eq!(labels.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn agent_graph_uses_only_user_prompts() {
+        let response = app_with_agent_events(
+            [1_704_067_200_000],
+            [1_704_067_260_000, 1_704_067_320_000, 1_704_153_600_000],
+        )
+        .oneshot(
+            Request::get("/agent-graph.svg?start=2024-01-01&end=2024-01-02")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let svg = String::from_utf8(body.to_vec()).unwrap();
+
+        assert!(svg.contains("Agent prompt contribution graph"));
+        assert!(svg.contains("2024-01-01: 1"));
+        assert!(svg.contains("1 prompt over 1 day"));
+        assert!(!svg.contains("2024-01-02"));
     }
 }

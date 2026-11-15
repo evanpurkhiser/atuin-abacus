@@ -9,7 +9,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use tokio::sync::RwLock;
 
 use crate::period::{
-    HistoryPeriod, Period, bucket_local_seconds, format_local_bucket, utc_millis_bounds,
+    Period, TimeSeriesPeriod, bucket_local_seconds, format_local_bucket, utc_millis_bounds,
 };
 
 #[derive(Clone)]
@@ -21,7 +21,7 @@ pub struct HistoryStore {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct BucketCount {
     pub date: String,
-    pub count: i64,
+    pub count: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -78,8 +78,8 @@ impl HistoryStore {
         Ok(())
     }
 
-    pub async fn buckets(&self, opts: &HistoryPeriod) -> Vec<BucketCount> {
-        let mut buckets = BTreeMap::<i64, i64>::new();
+    pub async fn buckets(&self, opts: &TimeSeriesPeriod) -> Vec<BucketCount> {
+        let mut buckets = BTreeMap::<i64, u64>::new();
         let timestamps = self.timestamps.read().await.clone();
         for timestamp in filtered(&timestamps, &opts.period) {
             let bucket = bucket_local_seconds(timestamp, opts.period.timezone, opts.rollup_seconds);
@@ -188,7 +188,7 @@ mod tests {
             timezone: chrono_tz::UTC,
         };
         let buckets = store
-            .buckets(&HistoryPeriod {
+            .buckets(&TimeSeriesPeriod {
                 period: period.clone(),
                 rollup_seconds: 86_400,
             })

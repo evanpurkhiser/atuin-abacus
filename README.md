@@ -7,10 +7,20 @@ and captured coding-agent conversations.
 It builds local projections of encrypted shell-history
 and coding-agent records downloaded from an Atuin sync server.
 
+## Shell commands
+
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://apis.evanpurkhiser.com/atuin-abacus/graph.svg?period=1y&cellBackground=%23161b22&textColor=%23c9d1d9">
-  <source media="(prefers-color-scheme: light)" srcset="https://apis.evanpurkhiser.com/atuin-abacus/graph.svg?period=1y">
-  <img alt="Command History Activity Graph" src="https://apis.evanpurkhiser.com/atuin-abacus/graph.svg?period=1y">
+  <source media="(prefers-color-scheme: dark)" srcset="https://apis.evanpurkhiser.com/atuin-abacus/shell-graph.svg?period=1y&cellBackground=%23161b22&textColor=%23c9d1d9">
+  <source media="(prefers-color-scheme: light)" srcset="https://apis.evanpurkhiser.com/atuin-abacus/shell-graph.svg?period=1y">
+  <img alt="Shell History Activity Graph" src="https://apis.evanpurkhiser.com/atuin-abacus/shell-graph.svg?period=1y">
+</picture>
+
+## Agent prompts
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://apis.evanpurkhiser.com/atuin-abacus/agent-graph.svg?period=1y&color=%233b82f6&cellBackground=%23161b22&textColor=%23c9d1d9">
+  <source media="(prefers-color-scheme: light)" srcset="https://apis.evanpurkhiser.com/atuin-abacus/agent-graph.svg?period=1y&color=%233b82f6">
+  <img alt="Agent Prompt Activity Graph" src="https://apis.evanpurkhiser.com/atuin-abacus/agent-graph.svg?period=1y&color=%233b82f6">
 </picture>
 
 ## Agent synchronization
@@ -41,7 +51,7 @@ Every time-series endpoint accepts:
 - `rollup`, a fixed duration such as `30s`, `5m`, `2h`, or `7d` where supported.
 - `Prefer: timezone=America/New_York` to select the bucketing timezone.
 
-### `GET /history`
+### `GET /shell-history`
 
 Returns command counts.
 Buckets default to one day.
@@ -71,7 +81,8 @@ and subagent-only conversations and tool results are excluded.
 
 - `GET /` returns the total command count and most recent command timestamp.
 - `GET /time-of-day` returns average command counts for each hour.
-- `GET /graph.svg` returns the command contribution graph.
+- `GET /shell-graph.svg` returns the shell-command contribution graph.
+- `GET /agent-graph.svg` returns a contribution graph driven by human prompts.
 
 ## Configuration
 

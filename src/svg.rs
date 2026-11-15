@@ -4,8 +4,6 @@ use std::fmt::Write;
 use chrono::{Datelike, Duration, NaiveDate, Utc};
 use palette::{FromColor, LinSrgb, Mix, Oklch, Srgb};
 
-use crate::history::BucketCount;
-
 const DAYS: [&str; 7] = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTHS: [&str; 12] = [
     "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
@@ -27,9 +25,33 @@ pub struct SvgOptions {
     pub base_color: String,
     pub text_color: String,
     pub cell_background: String,
+    pub labels: GraphLabels,
 }
 
-pub fn generate_contribution_graph(data: &[BucketCount], options: &SvgOptions) -> String {
+#[derive(Clone, Copy, Debug)]
+pub struct GraphLabels {
+    pub aria_label: &'static str,
+    pub singular: &'static str,
+    pub plural: &'static str,
+}
+
+impl GraphLabels {
+    fn count_label(self, count: u64) -> &'static str {
+        if count == 1 {
+            self.singular
+        } else {
+            self.plural
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ContributionDay {
+    pub date: String,
+    pub count: u64,
+}
+
+pub fn generate_contribution_graph(data: &[ContributionDay], options: &SvgOptions) -> String {
     let (first, last) = range(data);
     let start = first - Duration::days(i64::from(first.weekday().num_days_from_sunday()));
     let counts: HashMap<_, _> = data
@@ -44,8 +66,9 @@ pub fn generate_contribution_graph(data: &[BucketCount], options: &SvgOptions) -
     let width = left + weeks * cell_step + 10;
     let height = top + 7 * cell_step + 35;
 
+    let aria_label = options.labels.aria_label;
     let mut svg = format!(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="Command history contribution graph">"#,
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="{aria_label}">"#,
     );
     if options.show_day_labels {
         for (index, day) in DAYS.iter().enumerate() {
@@ -99,8 +122,10 @@ pub fn generate_contribution_graph(data: &[BucketCount], options: &SvgOptions) -
 
     render_month_separators(&mut svg, &cells, options, top);
 
-    let total: i64 = data.iter().map(|item| item.count).sum();
+    let total: u64 = data.iter().map(|item| item.count).sum();
+    let count_label = options.labels.count_label(total);
     let days = (last - first).num_days() + 1;
+    let day_label = if days == 1 { "day" } else { "days" };
     let footer_y = height - 15;
     let legend_start = left + 35;
     let _ = write!(
@@ -124,7 +149,7 @@ pub fn generate_contribution_graph(data: &[BucketCount], options: &SvgOptions) -
     let more_x = legend_start + 8 * 13 + 5;
     let _ = write!(
         svg,
-        r#"<text x="{more_x}" y="{footer_y}" fill="{}" font-size="11" font-family="monospace" dominant-baseline="middle">More</text><text x="{}" y="{footer_y}" fill="{}" font-size="11" font-family="monospace" dominant-baseline="middle" text-anchor="end">{total} commands over {days} days</text>"#,
+        r#"<text x="{more_x}" y="{footer_y}" fill="{}" font-size="11" font-family="monospace" dominant-baseline="middle">More</text><text x="{}" y="{footer_y}" fill="{}" font-size="11" font-family="monospace" dominant-baseline="middle" text-anchor="end">{total} {count_label} over {days} {day_label}</text>"#,
         safe_color(&options.text_color),
         width - 10,
         safe_color(&options.text_color),
@@ -133,7 +158,7 @@ pub fn generate_contribution_graph(data: &[BucketCount], options: &SvgOptions) -
     svg
 }
 
-fn range(data: &[BucketCount]) -> (NaiveDate, NaiveDate) {
+fn range(data: &[ContributionDay]) -> (NaiveDate, NaiveDate) {
     let mut dates = data.iter().filter_map(|item| parse_date(&item.date));
     let Some(first) = dates.next() else {
         let last = Utc::now().date_naive();
@@ -214,7 +239,7 @@ fn safe_color(value: &str) -> &str {
     }
 }
 
-fn intensity_map(counts: &HashMap<NaiveDate, i64>) -> HashMap<NaiveDate, u8> {
+fn intensity_map(counts: &HashMap<NaiveDate, u64>) -> HashMap<NaiveDate, u8> {
     let mut values: Vec<_> = counts
         .values()
         .copied()
@@ -340,6 +365,11 @@ mod tests {
             base_color: "#fb7185".to_owned(),
             text_color: "#57606a".to_owned(),
             cell_background: "#ebedf0".to_owned(),
+            labels: GraphLabels {
+                aria_label: "Test contribution graph",
+                singular: "event",
+                plural: "events",
+            },
         }
     }
 
@@ -353,7 +383,7 @@ mod tests {
 
     #[test]
     fn renders_data_and_custom_colors() {
-        let data = vec![BucketCount {
+        let data = vec![ContributionDay {
             date: "2024-01-01".to_owned(),
             count: 10,
         }];
@@ -361,7 +391,7 @@ mod tests {
         options.base_color = "#ff0000".to_owned();
         let svg = generate_contribution_graph(&data, &options);
         assert!(svg.contains("2024-01-01: 10"));
-        assert!(svg.contains("10 commands over 1 days"));
+        assert!(svg.contains("10 events over 1 day"));
         assert!(svg.contains(">Less<"));
         assert!(svg.contains(">More<"));
     }
