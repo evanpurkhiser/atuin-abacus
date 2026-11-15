@@ -29,7 +29,7 @@ An initial sync can be several gigabytes;
 subsequent syncs use Atuin's record diff and projection watermarks.
 
 Abacus logs in to the sync server on first startup
-and persists the resulting session and encryption key under `ATUIN_HOME`.
+and persists the resulting session and encryption key under `ABACUS_DATA_DIR`.
 It does not write captured records or upload local state.
 
 ## API
@@ -82,7 +82,6 @@ and subagent-only conversations and tool results are excluded.
 | `CACHE_TTL_SECONDS` | `300` | Response cache-control lifetime |
 | `ATUIN_SYNC_INTERVAL_SECONDS` | `300` | Delay between completed sync attempts |
 | `ABACUS_DATA_DIR` | `.local/atuin-abacus` | Persistent record and projection storage |
-| `ATUIN_HOME` | Atuin default | Persistent Atuin authentication state |
 | `ATUIN_SYNC_ADDRESS` | required | Atuin sync server URL |
 | `ATUIN_USERNAME` | required | Atuin account username |
 | `ATUIN_PASSWORD` | required | Atuin account password |

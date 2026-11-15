@@ -7,8 +7,9 @@ use atuin_client::ai_session::{AiSessionDatabase, AiSessionStore};
 use atuin_client::api_client;
 use atuin_client::record::sqlite_store::SqliteStore;
 use atuin_client::record::sync::{ClientSource, Operation, SyncSession};
-use atuin_client::settings::Settings;
+use atuin_client::settings::{DbLocation, Settings, meta};
 use atuin_common::encryption::paseto_v4;
+use atuin_common::path::AbsPathBuf;
 use atuin_domain::api::LoginRequest;
 use atuin_domain::record::RecordTag;
 use secrecy::ExposeSecret;
@@ -176,21 +177,28 @@ impl AtuinSync {
 }
 
 async fn prepare_settings(config: &AtuinSyncConfig) -> Result<Settings> {
-    let mut settings =
-        Settings::new().map_err(|error| anyhow::anyhow!("load Atuin settings: {error:#}"))?;
-    settings.sync_address = config
+    let data_dir = AbsPathBuf::canonicalize_async(&config.data_dir)
+        .await
+        .with_context(|| format!("resolve {}", config.data_dir.display()))?;
+    let key_path = data_dir.resolve("key").context("resolve Atuin key path")?;
+    let meta_db_path = DbLocation::File(
+        data_dir
+            .resolve("meta.db")
+            .context("resolve Atuin metadata path")?,
+    );
+    let sync_address = config
         .sync_address
         .parse()
         .context("parse ATUIN_SYNC_ADDRESS")?;
-
-    tokio::fs::create_dir_all(&settings.data_dir)
-        .await
-        .with_context(|| {
-            format!(
-                "create Atuin data directory {}",
-                settings.data_dir.as_path().display()
-            )
-        })?;
+    let settings = Settings {
+        data_dir,
+        key_path,
+        meta: meta::Settings {
+            db_path: meta_db_path,
+        },
+        sync_address,
+        ..Settings::default()
+    };
     install_key(&settings.key_path, &config.encryption_key)?;
 
     if !settings
