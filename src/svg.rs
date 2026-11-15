@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write;
 
 use chrono::{Datelike, Duration, NaiveDate, Utc};
-use palette::{FromColor, LinSrgb, Mix, Oklch, Srgb};
+use palette::{FromColor, LinSrgb, Oklch, Srgb};
 
 const DAYS: [&str; 7] = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTHS: [&str; 12] = [
@@ -297,56 +297,7 @@ fn intensity_color(base: &str, background: &str, level: u8) -> String {
     };
     let background = parse_oklch(background)
         .unwrap_or_else(|| Oklch::from_color(Srgb::new(0.92_f32, 0.93, 0.94).into_linear()));
-    let dark = background.l < 0.5;
-    let color = match level {
-        0 => background,
-        1 => tint(background, base, if dark { 0.15 } else { 0.2 }),
-        2 => tint(background, base, if dark { 0.35 } else { 0.4 }),
-        3 => Oklch::new(
-            if dark {
-                (base.l * 0.6).max(0.25)
-            } else {
-                (base.l * 1.5).min(0.85)
-            },
-            base.chroma * if dark { 0.7 } else { 0.5 },
-            base.hue,
-        ),
-        4 => Oklch::new(
-            if dark {
-                (base.l * 0.8).max(0.35)
-            } else {
-                (base.l * 1.3).min(0.78)
-            },
-            base.chroma * if dark { 0.85 } else { 0.7 },
-            base.hue,
-        ),
-        5..=7 => {
-            let mid = Oklch::new(
-                if dark {
-                    (base.l * 0.8).max(0.35)
-                } else {
-                    (base.l * 1.3).min(0.78)
-                },
-                base.chroma * if dark { 0.85 } else { 0.7 },
-                base.hue,
-            );
-            mid.mix(base, f32::from(level - 5) / 2.0)
-        }
-        8 | 9 if dark => Oklch::new(
-            (base.l + if level == 8 { 0.15 } else { 0.25 }).min(0.8),
-            (base.chroma * if level == 8 { 1.15 } else { 1.25 }).min(0.37),
-            base.hue,
-        ),
-        8 | 9 => {
-            let boost = if base.l > 0.75 { -0.08 } else { 0.08 };
-            Oklch::new(
-                (base.l + boost * if level == 8 { 1.0 } else { 1.5 }).clamp(0.4, 0.8),
-                (base.chroma * if level == 8 { 1.25 } else { 1.4 }).min(0.37),
-                base.hue,
-            )
-        }
-        _ => base,
-    };
+    let color = intensity_step(background, base, level);
     let linear: LinSrgb<f32> = LinSrgb::from_color(color);
     let encoded: Srgb<f32> = Srgb::from_linear(linear);
     let encoded = encoded.into_format::<u8>();
@@ -356,10 +307,21 @@ fn intensity_color(base: &str, background: &str, level: u8) -> String {
     )
 }
 
-fn tint(background: Oklch, base: Oklch, amount: f32) -> Oklch {
+fn intensity_step(background: Oklch, base: Oklch, level: u8) -> Oklch {
+    if level == 0 {
+        return background;
+    }
+
+    let progress = (f32::from(level.min(9)) / 9.0).powf(0.75);
+    let target_lightness = if background.l < 0.5 {
+        (base.l + 0.18).min(0.88)
+    } else {
+        (base.l - 0.14).max(0.25)
+    };
+
     Oklch::new(
-        background.l + (base.l - background.l) * amount,
-        base.chroma * amount,
+        background.l + (target_lightness - background.l) * progress,
+        (base.chroma * progress * 1.15).min(0.37),
         base.hue,
     )
 }
@@ -433,6 +395,23 @@ mod tests {
             let (red, _, blue) = parse_hex(&color).unwrap();
 
             assert!(red > blue, "level {level} drifted from rose to {color}");
+        }
+    }
+
+    #[test]
+    fn increases_intensity_toward_the_end_of_the_scale() {
+        let background = parse_oklch("#ebedf0").unwrap();
+        let mut previous = background;
+
+        for level in 1..=9 {
+            let color = parse_oklch(&intensity_color("#3b82f6", "#ebedf0", level)).unwrap();
+
+            assert!(color.l < previous.l, "level {level} did not get darker");
+            assert!(
+                color.chroma > previous.chroma,
+                "level {level} did not get more colorful"
+            );
+            previous = color;
         }
     }
 }
