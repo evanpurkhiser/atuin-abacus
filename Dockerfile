@@ -23,6 +23,7 @@ USER abacus
 ENV HOST=0.0.0.0
 ENV PORT=8888
 ENV ABACUS_DATA_DIR=/var/lib/atuin-abacus
+ENV ATUIN_HOME=/var/lib/atuin-abacus/atuin
 EXPOSE 8888
 VOLUME ["/var/lib/atuin-abacus"]
 

@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use chrono_tz::Tz;
+use secrecy::SecretString;
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -18,6 +19,10 @@ pub struct Config {
 pub struct AtuinSyncConfig {
     pub data_dir: PathBuf,
     pub interval: Duration,
+    pub sync_address: String,
+    pub username: String,
+    pub password: SecretString,
+    pub encryption_key: SecretString,
 }
 
 impl Config {
@@ -38,14 +43,29 @@ impl Config {
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from(".local/atuin-abacus"));
         let interval = Duration::from_secs(env_u64("ATUIN_SYNC_INTERVAL_SECONDS", 300)?);
+        let sync_address = required_env("ATUIN_SYNC_ADDRESS")?;
+        let username = required_env("ATUIN_USERNAME")?;
+        let password = required_env("ATUIN_PASSWORD")?.into();
+        let encryption_key = required_env("ATUIN_ENCRYPTION_KEY")?.into();
 
         Ok(Self {
             listen: SocketAddr::new(host, port),
             cache_ttl_seconds,
             timezone,
-            atuin_sync: AtuinSyncConfig { data_dir, interval },
+            atuin_sync: AtuinSyncConfig {
+                data_dir,
+                interval,
+                sync_address,
+                username,
+                password,
+                encryption_key,
+            },
         })
     }
+}
+
+fn required_env(name: &str) -> Result<String> {
+    env::var(name).with_context(|| format!("{name} is required"))
 }
 
 fn env_u16(name: &str, default: u16) -> Result<u16> {

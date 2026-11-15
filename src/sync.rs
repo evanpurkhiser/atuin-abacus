@@ -4,11 +4,14 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use atuin_client::ai_session::{AiSessionDatabase, AiSessionStore};
+use atuin_client::api_client;
 use atuin_client::record::sqlite_store::SqliteStore;
 use atuin_client::record::sync::{ClientSource, Operation, SyncSession};
 use atuin_client::settings::Settings;
 use atuin_common::encryption::paseto_v4;
+use atuin_domain::api::LoginRequest;
 use atuin_domain::record::RecordTag;
+use secrecy::ExposeSecret;
 use tracing::{error, info};
 
 use crate::agents::AgentStore;
@@ -37,9 +40,7 @@ impl AtuinSync {
         tokio::fs::create_dir_all(&config.data_dir)
             .await
             .with_context(|| format!("create {}", config.data_dir.display()))?;
-        let settings = Arc::new(
-            Settings::new().map_err(|error| anyhow::anyhow!("load Atuin settings: {error:#}"))?,
-        );
+        let settings = Arc::new(prepare_settings(&config).await?);
         let records_path = config.data_dir.join("records.db");
         let store = SqliteStore::new(&records_path, Duration::from_secs(5))
             .await
@@ -171,5 +172,100 @@ impl AtuinSync {
         );
 
         Ok(downloaded.len() as u64)
+    }
+}
+
+async fn prepare_settings(config: &AtuinSyncConfig) -> Result<Settings> {
+    let mut settings =
+        Settings::new().map_err(|error| anyhow::anyhow!("load Atuin settings: {error:#}"))?;
+    settings.sync_address = config
+        .sync_address
+        .parse()
+        .context("parse ATUIN_SYNC_ADDRESS")?;
+
+    tokio::fs::create_dir_all(&settings.data_dir)
+        .await
+        .with_context(|| {
+            format!(
+                "create Atuin data directory {}",
+                settings.data_dir.as_path().display()
+            )
+        })?;
+    install_key(&settings.key_path, &config.encryption_key)?;
+
+    if !settings
+        .logged_in()
+        .await
+        .map_err(|error| anyhow::anyhow!("load Atuin login state: {error:#}"))?
+    {
+        login(&settings, config).await?;
+    }
+
+    Ok(settings)
+}
+
+fn install_key(path: &std::path::Path, encoded: &secrecy::SecretString) -> Result<()> {
+    let supplied =
+        paseto_v4::Key::decode(encoded.expose_secret()).context("decode ATUIN_ENCRYPTION_KEY")?;
+
+    if path.exists() {
+        let stored =
+            paseto_v4::Key::try_load_from_path(path).context("load stored Atuin encryption key")?;
+        anyhow::ensure!(
+            stored == supplied,
+            "ATUIN_ENCRYPTION_KEY does not match stored key"
+        );
+        return Ok(());
+    }
+
+    supplied
+        .try_write_path(path)
+        .context("store Atuin encryption key")
+}
+
+async fn login(settings: &Settings, config: &AtuinSyncConfig) -> Result<()> {
+    let response = api_client::login(
+        &settings.sync_address,
+        LoginRequest {
+            username: config.username.clone(),
+            password: config.password.clone(),
+            totp_code: None,
+        },
+        &settings.extra_headers,
+    )
+    .await
+    .map_err(|error| anyhow::anyhow!("log in to Atuin sync server: {error:#}"))?;
+
+    settings
+        .meta_store()
+        .await
+        .map_err(|error| anyhow::anyhow!("open Atuin metadata store: {error:#}"))?
+        .save_session(&response.session)
+        .await
+        .map_err(|error| anyhow::anyhow!("save Atuin session: {error:#}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use secrecy::SecretString;
+
+    use super::install_key;
+    use atuin_common::encryption::paseto_v4;
+
+    #[test]
+    fn installs_and_preserves_the_account_key() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("key");
+        let key = paseto_v4::Key::generate();
+        let encoded = SecretString::from(key.encode().dangerously_leak_secret().to_owned());
+
+        install_key(&path, &encoded).unwrap();
+        install_key(&path, &encoded).unwrap();
+
+        assert_eq!(paseto_v4::Key::try_load_from_path(&path).unwrap(), key);
+
+        let other = paseto_v4::Key::generate();
+        let other = SecretString::from(other.encode().dangerously_leak_secret().to_owned());
+        assert!(install_key(&path, &other).is_err());
     }
 }

@@ -28,11 +28,8 @@ and must be on a persistent filesystem.
 An initial sync can be several gigabytes;
 subsequent syncs use Atuin's record diff and projection watermarks.
 
-Abacus reads the sync server, authentication token,
-and encryption key through Atuin's standard client settings.
-Give the service a dedicated Atuin home containing `config.toml`
-and a writable `data` directory with `meta.db` and `key`,
-then set `ATUIN_HOME` to it.
+Abacus logs in to the sync server on first startup
+and persists the resulting session and encryption key under `ATUIN_HOME`.
 It does not write captured records or upload local state.
 
 ## API
@@ -85,7 +82,11 @@ and subagent-only conversations and tool results are excluded.
 | `CACHE_TTL_SECONDS` | `300` | Response cache-control lifetime |
 | `ATUIN_SYNC_INTERVAL_SECONDS` | `300` | Delay between completed sync attempts |
 | `ABACUS_DATA_DIR` | `.local/atuin-abacus` | Persistent record and projection storage |
-| `ATUIN_HOME` | Atuin default | Directory containing client configuration, authentication, and key |
+| `ATUIN_HOME` | Atuin default | Persistent Atuin authentication state |
+| `ATUIN_SYNC_ADDRESS` | required | Atuin sync server URL |
+| `ATUIN_USERNAME` | required | Atuin account username |
+| `ATUIN_PASSWORD` | required | Atuin account password |
+| `ATUIN_ENCRYPTION_KEY` | required | Atuin account encryption key |
 | `SENTRY_DSN` | unset | Sentry error-reporting DSN |
 | `SENTRY_ENVIRONMENT` | `production` | Sentry environment |
 | `SENTRY_RELEASE` | unset | Sentry release identifier |
@@ -122,11 +123,10 @@ and stores synchronized state in `/var/lib/atuin-abacus`.
 ```bash
 docker run --rm \
   -p 8888:8888 \
-  -e ATUIN_HOME=/run/atuin \
+  -e ATUIN_SYNC_ADDRESS=https://atuin.example.com \
+  -e ATUIN_USERNAME=abacus \
+  -e ATUIN_PASSWORD=... \
+  -e ATUIN_ENCRYPTION_KEY=... \
   -v atuin-abacus-data:/var/lib/atuin-abacus \
-  -v atuin-client-home:/run/atuin \
   ghcr.io/evanpurkhiser/atuin-abacus:latest
 ```
-
-The Atuin home volume must contain `config.toml` and writable `data` storage
-for `meta.db` and the account encryption key.
