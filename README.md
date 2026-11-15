@@ -23,7 +23,7 @@ and coding-agent records downloaded from an Atuin sync server.
   <img alt="Agent Prompt Activity Graph" src="https://apis.evanpurkhiser.com/atuin-abacus/agent-graph.svg?period=1y&color=%233b82f6">
 </picture>
 
-## Agent synchronization
+## Synchronization
 
 Abacus acts as a download-only Atuin client:
 
