@@ -51,8 +51,18 @@ pub struct ContributionDay {
     pub count: u64,
 }
 
-pub fn generate_contribution_graph(data: &[ContributionDay], options: &SvgOptions) -> String {
-    let (first, last) = range(data);
+#[derive(Clone, Copy, Debug, Default)]
+pub struct GraphRange {
+    pub start: Option<NaiveDate>,
+    pub end: Option<NaiveDate>,
+}
+
+pub fn generate_contribution_graph(
+    data: &[ContributionDay],
+    range: GraphRange,
+    options: &SvgOptions,
+) -> String {
+    let (first, last) = range.resolve(data);
     let start = first - Duration::days(i64::from(first.weekday().num_days_from_sunday()));
     let counts: HashMap<_, _> = data
         .iter()
@@ -158,15 +168,27 @@ pub fn generate_contribution_graph(data: &[ContributionDay], options: &SvgOption
     svg
 }
 
-fn range(data: &[ContributionDay]) -> (NaiveDate, NaiveDate) {
-    let mut dates = data.iter().filter_map(|item| parse_date(&item.date));
-    let Some(first) = dates.next() else {
-        let last = Utc::now().date_naive();
-        return (last - Duration::days(364), last);
-    };
-    dates.fold((first, first), |(min, max), date| {
-        (min.min(date), max.max(date))
-    })
+impl GraphRange {
+    fn resolve(self, data: &[ContributionDay]) -> (NaiveDate, NaiveDate) {
+        let data_range =
+            data.iter()
+                .filter_map(|item| parse_date(&item.date))
+                .fold(None, |range, date| {
+                    let (first, last) = range.unwrap_or((date, date));
+                    Some((first.min(date), last.max(date)))
+                });
+        let today = Utc::now().date_naive();
+        let last = self
+            .end
+            .or_else(|| data_range.map(|(_, last)| last))
+            .unwrap_or(today);
+        let first = self
+            .start
+            .or_else(|| data_range.map(|(first, _)| first))
+            .unwrap_or(last - Duration::days(364));
+
+        (first, last.max(first))
+    }
 }
 
 fn render_month_separators(svg: &mut String, cells: &[Cell], options: &SvgOptions, top: u32) {
@@ -278,8 +300,8 @@ fn intensity_color(base: &str, background: &str, level: u8) -> String {
     let dark = background.l < 0.5;
     let color = match level {
         0 => background,
-        1 => background.mix(base, if dark { 0.15 } else { 0.2 }),
-        2 => background.mix(base, if dark { 0.35 } else { 0.4 }),
+        1 => tint(background, base, if dark { 0.15 } else { 0.2 }),
+        2 => tint(background, base, if dark { 0.35 } else { 0.4 }),
         3 => Oklch::new(
             if dark {
                 (base.l * 0.6).max(0.25)
@@ -334,6 +356,14 @@ fn intensity_color(base: &str, background: &str, level: u8) -> String {
     )
 }
 
+fn tint(background: Oklch, base: Oklch, amount: f32) -> Oklch {
+    Oklch::new(
+        background.l + (base.l - background.l) * amount,
+        base.chroma * amount,
+        base.hue,
+    )
+}
+
 fn parse_oklch(value: &str) -> Option<Oklch> {
     let (red, green, blue) = parse_hex(value)?;
     Some(Oklch::from_color(
@@ -375,7 +405,7 @@ mod tests {
 
     #[test]
     fn renders_empty_year() {
-        let svg = generate_contribution_graph(&[], &options());
+        let svg = generate_contribution_graph(&[], GraphRange::default(), &options());
         assert!(svg.starts_with("<svg"));
         assert!(svg.ends_with("</svg>"));
         assert!(svg.matches("<rect").count() >= 365);
@@ -389,10 +419,20 @@ mod tests {
         }];
         let mut options = options();
         options.base_color = "#ff0000".to_owned();
-        let svg = generate_contribution_graph(&data, &options);
+        let svg = generate_contribution_graph(&data, GraphRange::default(), &options);
         assert!(svg.contains("2024-01-01: 10"));
         assert!(svg.contains("10 events over 1 day"));
         assert!(svg.contains(">Less<"));
         assert!(svg.contains(">More<"));
+    }
+
+    #[test]
+    fn keeps_low_intensity_cells_on_the_base_hue() {
+        for level in 1..=9 {
+            let color = intensity_color("#fb7185", "#ebedf0", level);
+            let (red, _, blue) = parse_hex(&color).unwrap();
+
+            assert!(red > blue, "level {level} drifted from rose to {color}");
+        }
     }
 }

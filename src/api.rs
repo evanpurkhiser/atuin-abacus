@@ -12,7 +12,9 @@ use tower_http::trace::TraceLayer;
 use crate::agents::AgentStore;
 use crate::history::HistoryStore;
 use crate::period::{PeriodError, PeriodQuery, TimeSeriesPeriod};
-use crate::svg::{ContributionDay, GraphLabels, SvgOptions, generate_contribution_graph};
+use crate::svg::{
+    ContributionDay, GraphLabels, GraphRange, SvgOptions, generate_contribution_graph,
+};
 
 const SHELL_GRAPH_LABELS: GraphLabels = GraphLabels {
     aria_label: "Shell history contribution graph",
@@ -122,7 +124,15 @@ async fn shell_graph(
         })
         .collect::<Vec<_>>();
 
-    Ok(graph_response(&state, &data, &options))
+    Ok(graph_response(
+        &state,
+        &data,
+        GraphRange {
+            start: period.period.start,
+            end: period.period.end,
+        },
+        &options,
+    ))
 }
 
 async fn agent_graph(
@@ -147,7 +157,15 @@ async fn agent_graph(
         })
         .collect::<Vec<_>>();
 
-    Ok(graph_response(&state, &data, &options))
+    Ok(graph_response(
+        &state,
+        &data,
+        GraphRange {
+            start: period.period.start,
+            end: period.period.end,
+        },
+        &options,
+    ))
 }
 
 fn parse_graph_request(
@@ -192,8 +210,13 @@ fn parse_graph_request(
     ))
 }
 
-fn graph_response(state: &AppState, data: &[ContributionDay], options: &SvgOptions) -> Response {
-    let svg = generate_contribution_graph(data, options);
+fn graph_response(
+    state: &AppState,
+    data: &[ContributionDay],
+    range: GraphRange,
+    options: &SvgOptions,
+) -> Response {
+    let svg = generate_contribution_graph(data, range, options);
     let mut response = svg.into_response();
     response.headers_mut().insert(
         header::CONTENT_TYPE,
@@ -369,7 +392,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn agent_graph_uses_only_user_prompts() {
+    async fn agent_graph_uses_the_requested_range_and_only_user_prompts() {
         let response = app_with_agent_events(
             [1_704_067_200_000],
             [1_704_067_260_000, 1_704_067_320_000, 1_704_153_600_000],
@@ -386,7 +409,7 @@ mod tests {
 
         assert!(svg.contains("Agent prompt contribution graph"));
         assert!(svg.contains("2024-01-01: 1"));
-        assert!(svg.contains("1 prompt over 1 day"));
-        assert!(!svg.contains("2024-01-02"));
+        assert!(svg.contains("2024-01-02: 0"));
+        assert!(svg.contains("1 prompt over 2 days"));
     }
 }
