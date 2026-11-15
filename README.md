@@ -2,12 +2,13 @@
 
 [![Build Status](https://github.com/evanpurkhiser/atuin-abacus/actions/workflows/main.yml/badge.svg)](https://github.com/evanpurkhiser/atuin-abacus/actions/workflows/main.yml)
 
-Atuin Abacus is a metrics API for shell history
-and captured coding-agent conversations.
-It builds local projections of encrypted shell-history
-and coding-agent records downloaded from an Atuin sync server.
+Atuin Abacus is a metrics API for shell history and captured conversations.
+It builds local projections of encrypted records downloaded from an Atuin sync
+server.
 
-## Shell commands
+## Activity
+
+### Shell commands
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://apis.evanpurkhiser.com/atuin-abacus/shell-graph.svg?period=1y&cellBackground=%23161b22&textColor=%23c9d1d9">
@@ -15,7 +16,7 @@ and coding-agent records downloaded from an Atuin sync server.
   <img alt="Shell History Activity Graph" src="https://apis.evanpurkhiser.com/atuin-abacus/shell-graph.svg?period=1y">
 </picture>
 
-## Agent prompts
+### Agent prompts
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://apis.evanpurkhiser.com/atuin-abacus/agent-graph.svg?period=1y&color=%233b82f6&cellBackground=%23161b22&textColor=%23c9d1d9">
